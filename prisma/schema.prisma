@@ -1,0 +1,707 @@
+// Prospecta — modelo de dados
+// Convenções: identificadores em inglês, rótulos em português ficam em src/data/labels.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Usuários e acesso ─────────────────────────────
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(OPERATOR)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions         Session[]
+  auditLogs        AuditLog[]
+  notes            Note[]
+  campaigns        Campaign[]
+  approvedMessages Message[]  @relation("MessageApprover")
+  createdMessages  Message[]  @relation("MessageCreator")
+  approvedProposal Proposal[] @relation("ProposalApprover")
+  costs            Cost[]
+  tasks            FollowUpTask[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ───────────────────────────── Empresas / leads ─────────────────────────────
+
+enum WebsiteStatus {
+  NOT_CHECKED // ainda não verificado
+  NO_WEBSITE_CONFIRMED // sem site próprio confirmado
+  NO_WEBSITE_LIKELY // provavelmente sem site próprio
+  WEBSITE_WITH_ISSUES // site desatualizado ou com problemas aparentes
+  PROFESSIONAL_WEBSITE // possui site profissional
+  INCONCLUSIVE // situação inconclusiva
+}
+
+enum VerificationConfidence {
+  CONFIRMED
+  PROBABLE
+  UNVERIFIED
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum LeadStage {
+  FOUND // Empresa encontrada
+  VERIFYING // Dados em verificação
+  QUALIFIED // Lead qualificado
+  MESSAGE_READY // Mensagem preparada
+  CONTACTED // Contato realizado
+  AWAITING_REPLY // Aguardando resposta
+  INTERESTED // Interessado
+  NEGOTIATION // Negociação
+  PROPOSAL_SENT // Proposta enviada
+  WON // Venda fechada
+  LOST // Sem interesse
+  DO_NOT_CONTACT // Não contatar novamente
+}
+
+enum LossReason {
+  PRICE
+  ALREADY_HAS_WEBSITE
+  NO_NEED
+  NO_RESPONSE
+  CHOSE_COMPETITOR
+  BAD_TIMING
+  INVALID_CONTACT
+  BUSINESS_CLOSED
+  OTHER
+}
+
+enum PhoneType {
+  MOBILE
+  LANDLINE
+  UNKNOWN
+}
+
+enum DataProvider {
+  GOOGLE_PLACES
+  OSM
+  WEB_SEARCH
+  WEBSITE
+  MANUAL
+}
+
+model Lead {
+  id             String    @id @default(cuid())
+  name           String
+  normalizedName String
+  category       String?
+  nicheKey       String?
+  address        String?
+  neighborhood   String?
+  city           String
+  cityNormalized String
+  state          String // UF
+  postalCode     String?
+  latitude       Float?
+  longitude      Float?
+
+  phone            String?
+  phoneE164        String?
+  phoneType        PhoneType?
+  whatsappE164     String?
+  whatsappSource   String?
+  email            String?
+  emailSource      String?
+  instagramUrl     String?
+  facebookUrl      String?
+  otherProfiles    Json? // [{ label, url }]
+  googleMapsUrl    String?
+  websiteUrl       String?
+
+  websiteStatus     WebsiteStatus          @default(NOT_CHECKED)
+  websiteConfidence VerificationConfidence @default(UNVERIFIED)
+  websiteCheckedAt  DateTime?
+  websiteIssues     Json? // string[]
+
+  businessStatus String? // OPERATIONAL | CLOSED_TEMPORARILY | CLOSED_PERMANENTLY
+  rating         Float?
+  reviewCount    Int?
+
+  primarySource  DataProvider
+  lastVerifiedAt DateTime?
+
+  score          Int?
+  priority       Priority?
+  scoreBreakdown Json?
+  scoredAt       DateTime?
+  analysis       Json?
+  analysisAt     DateTime?
+
+  stage          LeadStage   @default(FOUND)
+  stageChangedAt DateTime    @default(now())
+  lossReason     LossReason?
+  lossNote       String?
+  dealValue      Decimal?    @db.Decimal(10, 2)
+  wonAt          DateTime?
+
+  doNotContact       Boolean   @default(false)
+  doNotContactAt     DateTime?
+  doNotContactReason String?
+  whatsappOptInAt    DateTime?
+  whatsappOptInNote  String?
+  lastContactAt      DateTime?
+  lastReplyAt        DateTime?
+
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sources       LeadSource[]
+  websiteChecks WebsiteCheck[]
+  messages      Message[]
+  activities    Activity[]
+  notes         Note[]
+  tasks         FollowUpTask[]
+  proposals     Proposal[]
+  campaignLeads CampaignLead[]
+
+  @@index([state, cityNormalized])
+  @@index([nicheKey])
+  @@index([stage])
+  @@index([priority, score])
+  @@index([phoneE164])
+  @@index([normalizedName, cityNormalized])
+  @@index([websiteStatus])
+  @@index([createdAt])
+  @@index([lastContactAt])
+}
+
+model LeadSource {
+  id         String       @id @default(cuid())
+  leadId     String
+  lead       Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  provider   DataProvider
+  externalId String
+  url        String?
+  fetchedAt  DateTime     @default(now())
+  data       Json? // subconjunto mínimo dos campos recebidos (sem dados sensíveis)
+
+  @@unique([provider, externalId])
+  @@index([leadId])
+}
+
+model WebsiteCheck {
+  id         String                 @id @default(cuid())
+  leadId     String
+  lead       Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  status     WebsiteStatus
+  confidence VerificationConfidence
+  websiteUrl String?
+  summary    String
+  evidence   Json // EvidenceItem[]
+  issues     Json? // string[]
+  searchProvider String?
+  queriesRun Int      @default(0)
+  durationMs Int?
+  checkedAt  DateTime @default(now())
+
+  @@index([leadId, checkedAt])
+}
+
+// ───────────────────────────── Campanhas ─────────────────────────────
+
+enum CampaignStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  CANCELLED
+  COMPLETED
+  FAILED
+}
+
+model Campaign {
+  id                 String         @id @default(cuid())
+  name               String
+  state              String
+  city               String
+  cityNormalized     String
+  nicheKey           String?
+  nicheLabel         String
+  searchTerms        Json // string[]
+  targetCount        Int
+  minPriority        Priority       @default(MEDIUM)
+  onlyWithoutWebsite Boolean        @default(true)
+  providers          Json // DataProvider[]
+  preferredChannel   Channel        @default(WHATSAPP)
+  abTestEnabled      Boolean        @default(false)
+  status             CampaignStatus @default(DRAFT)
+  progress           Json // CampaignProgress
+  report             Json?
+  lastError          String?
+  createdById        String?
+  createdBy          User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  startedAt          DateTime?
+  pausedAt           DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  isDemo             Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  leads    CampaignLead[]
+  jobs     Job[]
+  messages Message[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum CampaignLeadStatus {
+  PENDING
+  VERIFIED
+  SCORED
+  MESSAGE_DRAFTED
+  SKIPPED
+  FAILED
+}
+
+model CampaignLead {
+  campaignId String
+  campaign   Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId     String
+  lead       Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  isNew      Boolean            @default(true)
+  status     CampaignLeadStatus @default(PENDING)
+  skipReason String?
+  error      String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@id([campaignId, leadId])
+  @@index([leadId])
+}
+
+// ───────────────────────────── Mensagens ─────────────────────────────
+
+enum Channel {
+  WHATSAPP
+  EMAIL
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  PENDING_APPROVAL
+  APPROVED
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  REJECTED
+  CANCELLED
+  RECEIVED
+}
+
+enum MessagePurpose {
+  INITIAL
+  FOLLOW_UP
+  PROPOSAL
+  REPLY
+}
+
+enum SendMethod {
+  API
+  MANUAL
+}
+
+enum ReplyClassification {
+  INTERESTED
+  QUESTION
+  NOT_INTERESTED
+  OPT_OUT
+  NEUTRAL
+}
+
+model Message {
+  id          String           @id @default(cuid())
+  leadId      String
+  lead        Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaignId  String?
+  campaign    Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  channel     Channel
+  direction   MessageDirection
+  status      MessageStatus
+  purpose     MessagePurpose   @default(INITIAL)
+  subject     String?
+  body        String
+  toAddress   String?
+  fromAddress String?
+  variant     String?
+  generatedBy String?
+  warnings    Json? // string[] — alertas de conformidade do texto
+  sendMethod  SendMethod?
+  templateName   String?
+  templateParams Json?
+
+  createdById    String?
+  createdBy      User?     @relation("MessageCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedById   String?
+  approvedBy     User?     @relation("MessageApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt     DateTime?
+  rejectedReason String?
+  scheduledFor   DateTime?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  failedAt       DateTime?
+  receivedAt     DateTime?
+  error          String?
+  errorCode      String?
+  attempts       Int       @default(0)
+
+  providerMessageId String? @unique
+  inReplyToId       String?
+  inReplyTo         Message?  @relation("MessageReplies", fields: [inReplyToId], references: [id], onDelete: SetNull)
+  replies           Message[] @relation("MessageReplies")
+
+  classification           ReplyClassification?
+  classificationConfidence Float?
+  classifiedBy             String?
+  classificationSummary    String?
+  suggestedReply           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId, createdAt])
+  @@index([status])
+  @@index([direction, channel, sentAt])
+  @@index([campaignId])
+}
+
+// ───────────────────────────── CRM ─────────────────────────────
+
+enum ActorType {
+  USER
+  SYSTEM
+  AGENT
+}
+
+model Activity {
+  id          String    @id @default(cuid())
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type        String
+  description String
+  metadata    Json?
+  actorType   ActorType @default(SYSTEM)
+  actorId     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+}
+
+enum TaskType {
+  FOLLOW_UP
+  CALL
+  SEND_PROPOSAL
+  REPLY
+  MEETING
+  OTHER
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+model FollowUpTask {
+  id          String     @id @default(cuid())
+  leadId      String
+  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  title       String
+  type        TaskType   @default(FOLLOW_UP)
+  dueAt       DateTime
+  status      TaskStatus @default(OPEN)
+  auto        Boolean    @default(false)
+  completedAt DateTime?
+  createdById String?
+  createdBy   User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status, dueAt])
+  @@index([leadId])
+}
+
+// ───────────────────────────── Propostas e serviços ─────────────────────────────
+
+enum ProposalStatus {
+  DRAFT
+  APPROVED
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model ServicePackage {
+  id                     String   @id @default(cuid())
+  name                   String
+  description            String
+  price                  Decimal  @db.Decimal(10, 2)
+  deliveryDays           Int
+  revisions              Int      @default(2)
+  features               Json // string[]
+  notIncluded            Json // string[]
+  clientResponsibilities Json // string[]
+  paymentTerms           String
+  supportTerms           String
+  isDefault              Boolean  @default(false)
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  proposals Proposal[]
+}
+
+model Proposal {
+  id                     String          @id @default(cuid())
+  number                 Int             @unique @default(autoincrement())
+  leadId                 String
+  lead                   Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  packageId              String?
+  package                ServicePackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  status                 ProposalStatus  @default(DRAFT)
+  title                  String
+  objective              String
+  structure              Json // string[]
+  features               Json // string[]
+  notIncluded            Json // string[]
+  clientResponsibilities Json // string[]
+  timelineDays           Int
+  price                  Decimal         @db.Decimal(10, 2)
+  paymentTerms           String
+  supportTerms           String
+  validUntil             DateTime
+  notes                  String?
+  followUpMessage        String?
+  approvedById           String?
+  approvedBy             User?           @relation("ProposalApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt             DateTime?
+  sentAt                 DateTime?
+  sentVia                String?
+  acceptedAt             DateTime?
+  rejectedAt             DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+}
+
+// ───────────────────────────── Configurações ─────────────────────────────
+
+model AppSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+enum CostCategory {
+  API
+  TOOLS
+  ADS
+  OTHER
+}
+
+model Cost {
+  id          String       @id @default(cuid())
+  description String
+  category    CostCategory @default(OTHER)
+  amount      Decimal      @db.Decimal(10, 2)
+  date        DateTime
+  createdById String?
+  createdBy   User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+
+  @@index([date])
+}
+
+// ───────────────────────────── Conformidade (LGPD) ─────────────────────────────
+
+enum SuppressionType {
+  PHONE
+  EMAIL
+}
+
+// Lista de supressão: guarda apenas o HMAC do contato, para bloquear novos
+// contatos mesmo depois que os dados do lead forem excluídos.
+model SuppressionEntry {
+  id          String          @id @default(cuid())
+  type        SuppressionType
+  valueHash   String          @unique
+  reason      String
+  source      String
+  leadId      String?
+  createdById String?
+  createdAt   DateTime        @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+}
+
+// ───────────────────────────── Fila de tarefas e observabilidade ─────────────────────────────
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model Job {
+  id             String    @id @default(cuid())
+  type           String
+  payload        Json
+  status         JobStatus @default(QUEUED)
+  priority       Int       @default(0)
+  runAt          DateTime  @default(now())
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3)
+  lockedAt       DateTime?
+  lockedBy       String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  lastError      String?
+  result         Json?
+  campaignId     String?
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId         String?
+  idempotencyKey String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, runAt, priority])
+  @@index([campaignId, status])
+  @@index([type, createdAt])
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+model EventLog {
+  id         String   @id @default(cuid())
+  level      LogLevel @default(INFO)
+  source     String
+  message    String
+  details    Json?
+  jobId      String?
+  campaignId String?
+  leadId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level, createdAt])
+  @@index([campaignId])
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  externalId  String?   @unique
+  payload     Json
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+  error       String?
+
+  @@index([provider, receivedAt])
+}
+
+model WorkerHeartbeat {
+  id         String   @id
+  startedAt  DateTime
+  lastSeenAt DateTime
+  hostname   String
+  jobsDone   Int      @default(0)
+}
+
+model ApiUsage {
+  provider String
+  day      DateTime @db.Date
+  count    Int      @default(0)
+
+  @@id([provider, day])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}
