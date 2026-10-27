@@ -38,6 +38,7 @@ export function BarList({ data, max, ariaLabel }: { data: BarDatum[]; max?: numb
               {d.label}
             </span>
             <span
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- o foco por teclado exibe o tooltip da barra.
               tabIndex={0}
               onFocus={() => setActive(d.key)}
               onBlur={() => setActive(null)}

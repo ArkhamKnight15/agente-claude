@@ -192,7 +192,7 @@ export function stripQuotedReply(text: string): string {
   const lines = text.split(/\r?\n/);
   const out: string[] = [];
   for (const line of lines) {
-    if (/^>/.test(line)) break;
+    if (line.startsWith(">")) break;
     if (/^(Em|On) .{5,120}(escreveu|wrote):?\s*$/i.test(line.trim())) break;
     if (/^-{2,}\s*(Mensagem original|Original Message)/i.test(line.trim())) break;
     if (/^De: .+/i.test(line.trim()) && out.length > 0) break;

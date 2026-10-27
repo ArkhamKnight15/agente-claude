@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { ToastProvider } from "@/components/ui/toast";
@@ -26,10 +27,10 @@ const themeScript = `(function(){try{var t=localStorage.getItem("theme");var d=t
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body>
+        <Script id="theme" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

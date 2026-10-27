@@ -39,6 +39,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   );
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- clique no fundo fecha; Esc (nativo) é o equivalente por teclado.
     <dialog
       ref={ref}
       onClose={onClose}

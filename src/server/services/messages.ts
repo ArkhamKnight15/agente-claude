@@ -247,6 +247,11 @@ export function unsubscribeUrl(leadId: string): string {
   return `${getEnv().APP_URL}/descadastro/${signToken({ l: leadId }, "unsubscribe")}`;
 }
 
+/** URL para o cabeçalho List-Unsubscribe (aceita POST de um clique, RFC 8058). */
+export function oneClickUnsubscribeUrl(leadId: string): string {
+  return `${getEnv().APP_URL}/api/public/unsubscribe/${signToken({ l: leadId }, "unsubscribe")}`;
+}
+
 async function emailFooter(leadId: string): Promise<string> {
   const profile = await getSenderProfile();
   const identity = [profile.companyName || profile.name, profile.cnpj ? `CNPJ ${profile.cnpj}` : null, profile.city]
@@ -319,7 +324,7 @@ export async function performSend(messageId: string): Promise<SendOutcome> {
         to: lead.email!,
         subject: message.subject ?? "Contato",
         text: `${message.body}${await emailFooter(lead.id)}`,
-        unsubscribeUrl: unsubscribeUrl(lead.id),
+        unsubscribeUrl: oneClickUnsubscribeUrl(lead.id),
       });
       await afterSent(message, { status: "SENT", sendMethod: "API", sentAt: new Date(), providerMessageId, error: null }, { userId: null, method: "API" });
     }

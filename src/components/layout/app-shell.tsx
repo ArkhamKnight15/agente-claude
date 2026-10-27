@@ -64,6 +64,8 @@ function ThemeToggle() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem("theme");
+      // Lido após a hidratação para não divergir do HTML gerado no servidor.
+      // oxlint-disable-next-line react/set-state-in-effect
       if (stored === "light" || stored === "dark") setTheme(stored);
     } catch {
       /* armazenamento indisponível: segue o sistema */
@@ -225,6 +227,7 @@ export function AppShell({ children, banner, ...props }: ShellProps) {
         <SidebarContent {...props} />
       </aside>
 
+      {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- Esc fecha o menu. */}
       <dialog
         ref={drawer}
         onClose={() => setOpen(false)}
@@ -253,9 +256,9 @@ export function AppShell({ children, banner, ...props }: ShellProps) {
         >
           <Menu className="size-5" />
         </button>
+        <search className="relative w-full max-w-md">
         <form
-          role="search"
-          className="relative w-full max-w-md"
+          className="relative"
           onSubmit={(e) => {
             e.preventDefault();
             router.push(`/leads?q=${encodeURIComponent(query)}`);
@@ -274,6 +277,7 @@ export function AppShell({ children, banner, ...props }: ShellProps) {
             className="h-9 w-full rounded-lg border border-border bg-surface pr-3 pl-9 text-sm shadow-xs placeholder:text-fg-3 focus:border-accent focus:ring-3 focus:ring-accent/15 focus:outline-none"
           />
         </form>
+        </search>
       </header>
 
       {banner}

@@ -87,7 +87,7 @@ async function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
   log.info(`Recebido ${signal}; aguardando ${active.size} tarefa(s) em execução…`);
-  await Promise.race([Promise.allSettled([...active]), sleep(30_000)]);
+  await Promise.race([Promise.allSettled(active), sleep(30_000)]);
   await db.workerHeartbeat.delete({ where: { id: workerId } }).catch(() => undefined);
   await db.$disconnect();
   process.exit(0);

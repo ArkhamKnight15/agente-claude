@@ -28,6 +28,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  agentRules: false,
   reactStrictMode: true,
   output: "standalone",
   // Bibliotecas Node que leem arquivos do próprio pacote em tempo de execução.

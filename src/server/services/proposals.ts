@@ -9,7 +9,7 @@ import { sendEmail } from "@/server/integrations/email";
 import { audit } from "@/server/security/audit";
 import { recordActivity } from "@/server/services/activity";
 import { changeLeadStage } from "@/server/services/leads";
-import { evaluateMessagePolicy, unsubscribeUrl } from "@/server/services/messages";
+import { evaluateMessagePolicy, oneClickUnsubscribeUrl, unsubscribeUrl } from "@/server/services/messages";
 import { getDefaultPackage, getPackage, getSenderProfile } from "@/server/services/settings";
 import { renderProposalPdf } from "@/server/pdf/proposal-pdf";
 
@@ -152,7 +152,7 @@ export async function sendProposalByEmail(id: string, userId: string): Promise<v
       to: lead.email,
       subject: proposal.title,
       text: `${body}\n\n—\nPara não receber mais mensagens, acesse ${unsubscribeUrl(lead.id)}.`,
-      unsubscribeUrl: unsubscribeUrl(lead.id),
+      unsubscribeUrl: oneClickUnsubscribeUrl(lead.id),
       attachments: [{ filename: `proposta-${String(proposal.number).padStart(4, "0")}.pdf`, content: pdf, contentType: "application/pdf" }],
     });
     await db.message.update({ where: { id: draft.id }, data: { status: "SENT", sentAt: new Date(), sendMethod: "API", providerMessageId } });

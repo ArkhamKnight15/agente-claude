@@ -117,7 +117,7 @@ export function normalizeWebsiteUrl(raw: string | null | undefined): string | nu
   if (!url) return null;
   url.hash = "";
   // Remove parâmetros de rastreamento comuns.
-  for (const key of [...url.searchParams.keys()]) {
+  for (const key of Array.from(url.searchParams.keys())) {
     if (/^(utm_|fbclid|gclid)/i.test(key)) url.searchParams.delete(key);
   }
   return url.toString().replace(/\/$/, "");

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { DAILY_SERIES as SERIES } from "./daily-series";
 
 interface Point {
   day: string;
@@ -8,10 +9,6 @@ interface Point {
   replies: number;
 }
 
-const SERIES = [
-  { key: "sent" as const, label: "Mensagens enviadas", color: "var(--series-1)" },
-  { key: "replies" as const, label: "Respostas recebidas", color: "var(--series-2)" },
-];
 
 function niceMax(value: number): number {
   if (value <= 4) return 4;
@@ -39,15 +36,10 @@ export function DailyChart({ data }: { data: Point[] }) {
   const y = (v: number) => pad.top + innerH - (v / maxY) * innerH;
   const ticks = [0, maxY / 4, maxY / 2, (3 * maxY) / 4, maxY];
 
-  const paths = useMemo(
-    () =>
-      SERIES.map((s) => ({
-        ...s,
-        d: data.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p[s.key]).toFixed(1)}`).join(" "),
-      })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, maxY],
-  );
+  const paths = SERIES.map((s) => ({
+    ...s,
+    d: data.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p[s.key]).toFixed(1)}`).join(" "),
+  }));
 
   const onMove = (event: React.PointerEvent<SVGSVGElement>) => {
     const svg = ref.current;
@@ -63,6 +55,7 @@ export function DailyChart({ data }: { data: Point[] }) {
 
   return (
     <div className="relative">
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- setas do teclado percorrem os dias (equivalente ao crosshair). */}
       <svg
         ref={ref}
         viewBox={`0 0 ${width} ${height}`}
@@ -71,6 +64,7 @@ export function DailyChart({ data }: { data: Point[] }) {
         aria-label={`Mensagens enviadas e respostas por dia nos últimos ${data.length} dias`}
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- foco habilita a navegação por setas.
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "ArrowRight") setHover((h) => Math.min(last, (h ?? -1) + 1));
@@ -138,4 +132,3 @@ export function DailyChart({ data }: { data: Point[] }) {
   );
 }
 
-export const DAILY_SERIES = SERIES;
