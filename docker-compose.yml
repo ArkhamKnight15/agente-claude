@@ -1,0 +1,42 @@
+# Ambiente completo: PostgreSQL + aplicação web + worker.
+# Uso: cp .env.example .env (preencha) && docker compose up -d --build
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: prospecta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-troque-esta-senha}
+      POSTGRES_DB: prospecta
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prospecta"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://prospecta:${POSTGRES_PASSWORD:-troque-esta-senha}@db:5432/prospecta?schema=public
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://prospecta:${POSTGRES_PASSWORD:-troque-esta-senha}@db:5432/prospecta?schema=public
+    command: ["npx", "tsx", "src/worker/index.ts"]
+    depends_on:
+      web:
+        condition: service_started
+
+volumes:
+  pgdata:

@@ -130,7 +130,7 @@ export function Pagination({
 
 export function Tabs({ items, current }: { items: Array<{ key: string; label: string; href: string; count?: number }>; current: string }) {
   return (
-    <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    <div className="relative -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <nav className="flex min-w-max gap-1 border-b border-border" aria-label="Seções">
         {items.map((item) => {
           const active = item.key === current;

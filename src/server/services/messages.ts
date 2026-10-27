@@ -177,7 +177,8 @@ export async function approveMessage(messageId: string, userId: string): Promise
     throw new AppError("Esta mensagem não está aguardando aprovação.");
   }
   const decision = await evaluateMessagePolicy(message, "MANUAL");
-  const hardBlockers = decision.blockers.filter((b) => !b.startsWith("Integração"));
+  // Aprovar não envia nada: integração ausente e leads de demonstração só bloqueiam o envio.
+  const hardBlockers = decision.blockers.filter((b) => !b.startsWith("Integração") && !b.startsWith("Lead de demonstração"));
   if (hardBlockers.length) throw new AppError(hardBlockers.join(" "));
   const updated = await db.message.update({
     where: { id: messageId },

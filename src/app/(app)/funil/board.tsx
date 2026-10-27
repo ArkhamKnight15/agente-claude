@@ -39,7 +39,7 @@ export function PipelineBoard({ columns, cards, canMove }: { columns: LeadStage[
   };
 
   return (
-    <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
+    <div className="relative -mx-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0">
       <div className="grid auto-cols-[minmax(260px,1fr)] grid-flow-col gap-3">
         {columns.map((stage) => {
           const items = optimistic.filter((c) => c.stage === stage);

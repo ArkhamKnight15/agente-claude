@@ -31,10 +31,11 @@ export function normalizeBrazilPhone(raw: string | null | undefined): Normalized
 
   if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
     digits = digits.slice(2);
-  } else if (digits.startsWith("0") && (digits.length === 13 || digits.length === 12)) {
-    // Formato com código de operadora: 0 + operadora (2 dígitos) + DDD + número
+  } else if (digits.startsWith("0") && (digits.length === 13 || digits.length === 14)) {
+    // Código de operadora: 0 + operadora (2 dígitos) + DDD + número (8 ou 9 dígitos)
     digits = digits.slice(3);
   } else if (digits.startsWith("0") && (digits.length === 11 || digits.length === 12)) {
+    // 0 + DDD + número
     digits = digits.slice(1);
   }
 

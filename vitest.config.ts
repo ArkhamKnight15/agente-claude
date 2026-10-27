@@ -11,6 +11,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     setupFiles: ["tests/setup.ts"],
+    globalSetup: ["tests/global-setup.ts"],
     // Testes de integração compartilham o mesmo banco de teste.
     fileParallelism: false,
     testTimeout: 20000,

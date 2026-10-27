@@ -32,8 +32,9 @@ export interface DuplicateMatch {
   similarity: number;
 }
 
+const toRad = (d: number) => (d * Math.PI) / 180;
+
 function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
   const R = 6371000;
   const dLat = toRad(bLat - aLat);
   const dLng = toRad(bLng - aLng);
@@ -63,9 +64,12 @@ export function findDuplicate(incoming: IncomingBusiness, candidates: DedupeCand
     }
   }
 
+  const numbers = (value: string) => (value.match(/\d+/g) ?? []).join(" ");
   let best: DuplicateMatch | null = null;
   for (const c of candidates) {
     if (c.state !== incoming.state || c.cityNormalized !== city) continue;
+    // Números diferentes no nome indicam filiais/unidades distintas ("Unidade 1" x "Unidade 2").
+    if (numbers(name) !== numbers(c.normalizedName)) continue;
     const similarity = diceSimilarity(name, c.normalizedName);
     const near =
       incoming.latitude !== null &&
@@ -73,6 +77,9 @@ export function findDuplicate(incoming: IncomingBusiness, candidates: DedupeCand
       c.latitude !== null &&
       c.longitude !== null &&
       distanceMeters(incoming.latitude, incoming.longitude, c.latitude, c.longitude) < 250;
+    // Telefones diferentes: só é a mesma empresa se estiver no mesmo endereço.
+    const conflictingPhones = Boolean(incoming.phoneE164 && c.phoneE164 && incoming.phoneE164 !== c.phoneE164);
+    if (conflictingPhones && !near) continue;
     const threshold = near ? 0.75 : 0.92;
     if (similarity >= threshold && (!best || similarity > best.similarity)) {
       best = { id: c.id, reason: "name_location", similarity };
