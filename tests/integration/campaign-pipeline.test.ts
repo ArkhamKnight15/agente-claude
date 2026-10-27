@@ -164,6 +164,26 @@ describe("pipeline de campanha (integração)", () => {
     expect(await db.campaignLead.count({ where: { campaignId: campaign.id } })).toBe(5);
   });
 
+  it("pesquisa longa é executada em partes (limite de tempo de funções serverless)", async () => {
+    process.env.JOB_SLICE_MS = "0";
+    const { resetEnvCache } = await import("@/server/env");
+    resetEnvCache();
+    try {
+      const campaign = await createCampaign(
+        { state: "SP", city: "Campinas", nicheKey: "oficina-mecanica", targetCount: 10, minPriority: "MEDIUM", onlyWithoutWebsite: true, providers: ["GOOGLE_PLACES"], preferredChannel: "WHATSAPP", abTestEnabled: false },
+        adminId,
+      );
+      await drainQueue();
+      const finished = await db.campaign.findUniqueOrThrow({ where: { id: campaign.id } });
+      expect(finished.status).toBe("COMPLETED");
+      expect(await db.lead.count()).toBe(5);
+      expect(searchCalls.map((c) => c.cursor ?? null)).toEqual([null, "page-2", null, "page-2", null, "page-2"]);
+    } finally {
+      delete process.env.JOB_SLICE_MS;
+      resetEnvCache();
+    }
+  });
+
   it("não aborda novamente quem já está em negociação ou pediu para não ser contatado", async () => {
     const first = await createCampaign(
       { state: "SP", city: "Campinas", nicheKey: "oficina-mecanica", targetCount: 10, minPriority: "MEDIUM", onlyWithoutWebsite: true, providers: ["GOOGLE_PLACES"], preferredChannel: "WHATSAPP", abTestEnabled: false },

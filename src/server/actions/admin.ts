@@ -7,6 +7,7 @@ import { requirePermission } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { retryJob } from "@/server/jobs/queue";
+import { kickQueue } from "@/server/jobs/kick";
 import { audit } from "@/server/security/audit";
 import { testIntegration, type IntegrationKey } from "@/server/services/integrations";
 import {
@@ -187,6 +188,7 @@ export async function retryJobAction(jobId: string): Promise<ActionState> {
     await retryJob(jobId);
     await audit({ userId: user.id, action: "job.retry", entityType: "Job", entityId: jobId });
     revalidatePath("/tarefas");
+    kickQueue();
     return { ok: true, message: "Tarefa recolocada na fila." };
   });
 }

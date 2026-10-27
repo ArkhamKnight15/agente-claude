@@ -14,6 +14,7 @@ import { requireUser } from "@/server/auth/session";
 import { retryJobAction } from "@/server/actions/admin";
 import { db } from "@/server/db";
 import { can } from "@/server/security/rbac";
+import { isWorkerOnline } from "@/server/jobs/scheduler";
 
 export const metadata: Metadata = { title: "Tarefas e erros" };
 const PAGE = 30;
@@ -28,7 +29,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     db.workerHeartbeat.findMany({ orderBy: { lastSeenAt: "desc" }, take: 5 }),
     db.job.groupBy({ by: ["status"], _count: true }),
   ]);
-  const online = workers.filter((w) => Date.now() - w.lastSeenAt.getTime() < 60_000);
+  const online = workers.filter((w) => isWorkerOnline(w));
   const queued = counts.find((c) => c.status === "QUEUED")?._count ?? 0;
   const running = counts.find((c) => c.status === "RUNNING")?._count ?? 0;
 
@@ -38,12 +39,12 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       <PageHeader title="Histórico de tarefas e erros" description="Tudo o que o sistema executou, o que falhou e o que ainda está na fila." />
       {online.length === 0 ? (
         <Alert tone={queued ? "danger" : "warning"} className="mb-4" title="Worker offline">
-          As automações (pesquisas, verificações, envios e leitura de respostas) só rodam com o worker ativo: <code className="font-mono text-xs">npm run worker</code>.
+          As automações (pesquisas, verificações, envios e leitura de respostas) precisam do worker (<code className="font-mono text-xs">npm run worker</code>) ou, na Vercel, do agendamento de <code className="font-mono text-xs">/api/cron/run-jobs</code> (veja o README).
           {queued ? ` Há ${queued} tarefa(s) aguardando.` : ""}
         </Alert>
       ) : (
         <Alert tone="success" className="mb-4" title={`${online.length} worker(s) online`}>
-          {online.map((w) => `${w.hostname} · ${w.jobsDone} tarefa(s) desde ${formatDateTime(w.startedAt)}`).join(" · ")}
+          {online.map((w) => `${w.id.startsWith("cron:") ? `execução agendada (${w.hostname})` : w.hostname} · ${w.jobsDone} tarefa(s) desde ${formatDateTime(w.startedAt)} · último sinal ${formatDateTime(w.lastSeenAt)}`).join(" · ")}
         </Alert>
       )}
       <Tabs current={tab} items={[

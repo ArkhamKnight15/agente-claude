@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "prospecta_session";
-const PUBLIC_PREFIXES = ["/login", "/descadastro", "/api/webhooks", "/api/public", "/api/health"];
+const PUBLIC_PREFIXES = ["/login", "/descadastro", "/api/webhooks", "/api/public", "/api/cron", "/api/health"];
 
 /**
  * Verificação otimista: sem cookie de sessão, redireciona para o login.

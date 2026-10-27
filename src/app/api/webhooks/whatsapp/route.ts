@@ -6,6 +6,7 @@ import { createLogger } from "@/server/logger";
 import { parseWhatsappWebhook, verifyWebhookSignature } from "@/server/integrations/whatsapp";
 import { hitRateLimit } from "@/server/security/rate-limit";
 import { safeEqual } from "@/server/security/crypto";
+import { kickQueue } from "@/server/jobs/kick";
 import { logEvent } from "@/server/services/events";
 import { applyWhatsappStatus, recordInboundWhatsapp } from "@/server/services/messages";
 
@@ -58,5 +59,7 @@ export async function POST(request: Request) {
       await logEvent({ level: "ERROR", source: "webhook.whatsapp", message: `Falha ao processar evento: ${(error as Error).message}` });
     }
   }
+  // Classifica as respostas logo em seguida (sem esperar o próximo ciclo do cron).
+  if (events.some((e) => e.kind === "message")) kickQueue(30_000);
   return NextResponse.json({ ok: true, processed: events.length });
 }

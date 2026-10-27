@@ -3,10 +3,10 @@ import { hostname } from "node:os";
 import { randomBytes } from "node:crypto";
 import { db } from "@/server/db";
 import { getEnv } from "@/server/env";
-import { isImapConfigured } from "@/server/integrations/email";
 import { createLogger } from "@/server/logger";
-import { enqueueJob, recoverStaleJobs } from "@/server/jobs/queue";
+import { recoverStaleJobs } from "@/server/jobs/queue";
 import { runNextJob } from "@/server/jobs/runner";
+import { heartbeat as sendHeartbeat, scheduleRecurring } from "@/server/jobs/scheduler";
 import { logEvent } from "@/server/services/events";
 
 /**
@@ -24,26 +24,8 @@ const active = new Set<Promise<unknown>>();
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function slot(minutes: number): number {
-  return Math.floor(Date.now() / (minutes * 60_000));
-}
-
-async function scheduleRecurring() {
-  // A chave de idempotência por janela garante uma execução por período, mesmo com vários workers.
-  if (isImapConfigured()) {
-    await enqueueJob("email.syncInbox", {}, { idempotencyKey: `email.syncInbox:${slot(5)}`, maxAttempts: 1 });
-  }
-  await enqueueJob("followups.scan", {}, { idempotencyKey: `followups.scan:${slot(60)}`, maxAttempts: 2 });
-  const day = new Date().toISOString().slice(0, 10);
-  await enqueueJob("maintenance.cleanup", {}, { idempotencyKey: `maintenance.cleanup:${day}`, maxAttempts: 2, runAt: new Date() });
-}
-
 async function heartbeat() {
-  await db.workerHeartbeat.upsert({
-    where: { id: workerId },
-    create: { id: workerId, startedAt: new Date(), lastSeenAt: new Date(), hostname: hostname(), jobsDone },
-    update: { lastSeenAt: new Date(), jobsDone },
-  });
+  await sendHeartbeat(workerId, jobsDone);
 }
 
 async function housekeepingLoop() {

@@ -8,6 +8,7 @@ import { draftInitialMessage, generateLeadAnalysis, scoreLead } from "@/server/a
 import { db } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { enqueueJob } from "@/server/jobs/queue";
+import { kickQueue } from "@/server/jobs/kick";
 import { parseBRL } from "@/lib/format";
 import {
   addNote,
@@ -135,7 +136,8 @@ export async function reverifyLeadAction(leadId: string): Promise<ActionState> {
   return runAction(async () => {
     await requirePermission("lead:write");
     await enqueueJob("lead.process", { leadId, force: true }, { leadId, idempotencyKey: `lead.reverify:${leadId}:${Math.floor(Date.now() / 60000)}`, priority: 3 });
-    return { ok: true, message: "Verificação agendada. O resultado aparece em instantes (o worker precisa estar ativo)." };
+    kickQueue();
+    return { ok: true, message: "Verificação agendada. O resultado aparece em instantes." };
   });
 }
 
@@ -206,6 +208,7 @@ export async function bulkProcessLeadsAction(ids: string[]): Promise<ActionState
     for (const lead of leads) {
       await enqueueJob("lead.process", { leadId: lead.id }, { leadId: lead.id, idempotencyKey: `lead.process:manual:${lead.id}:${Math.floor(Date.now() / 60000)}` });
     }
+    kickQueue();
     return { ok: true, message: `${leads.length} lead(s) enviados para verificação e qualificação.` };
   });
 }

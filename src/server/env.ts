@@ -79,7 +79,12 @@ const schema = z.object({
   IMAP_PASSWORD: optional,
   IMAP_MAILBOX: z.string().default("INBOX"),
 
-  // Worker
+  // Worker / execução serverless
+  CRON_SECRET: optional,
+  // Processa a fila logo após as ações (padrão na Vercel, onde não há worker contínuo).
+  QUEUE_INLINE: bool(process.env.VERCEL === "1"),
+  // Duração máxima de uma fatia da pesquisa de empresas antes de continuar em outra execução.
+  JOB_SLICE_MS: int(90_000),
   WORKER_CONCURRENCY: int(3),
   WORKER_POLL_MS: int(1500),
 });

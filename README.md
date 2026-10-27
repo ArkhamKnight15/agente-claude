@@ -216,9 +216,45 @@ docker compose exec web npx tsx prisma/seed.ts
 
 Coloque um proxy HTTPS (Caddy, Nginx ou Traefik) na frente da porta 3000 — o webhook do WhatsApp exige HTTPS.
 
-**Opção 2 — Plataformas gerenciadas** (Railway, Render, Fly.io): crie um PostgreSQL gerenciado e **dois serviços** do mesmo repositório: web (`npm run build` / `npx prisma migrate deploy && npm start`) e worker (`npm run worker`). Plataformas apenas serverless (como a Vercel) servem para a parte web, mas o worker precisa de um processo contínuo em outro lugar.
+**Opção 2 — Plataformas gerenciadas** (Railway, Render, Fly.io): crie um PostgreSQL gerenciado e **dois serviços** do mesmo repositório: web (`npm run build` / `npx prisma migrate deploy && npm start`) e worker (`npm run worker`).
 
 Verificação de saúde: `GET /api/health` (banco e worker).
+
+### Opção 3 — Vercel
+
+A Vercel executa funções sob demanda (sem processo contínuo). O projeto já está preparado para isso:
+as tarefas iniciadas por você (campanha, verificação, envio, resposta recebida no WhatsApp) começam a ser
+processadas **logo após cada ação**, e o endpoint protegido **`/api/cron/run-jobs`** processa o restante da fila
+(continuação de campanhas longas, leitura de e-mails, acompanhamentos) quando chamado periodicamente.
+
+1. **Banco de dados:** no painel da Vercel, *Storage → Create Database → Neon* (Postgres), região **São Paulo (sa-east-1)**.
+   A integração cria `DATABASE_URL` (com pooler) e `DATABASE_URL_UNPOOLED` (usada nas migrações).
+   Com Supabase: `DATABASE_URL` = conexão do *pooler* (porta 6543) e `DIRECT_DATABASE_URL` = conexão direta (5432).
+2. **Projeto:** *Add New → Project* → importe o repositório `agente-claude` (framework Next.js detectado).
+   O script `vercel-build` roda `prisma migrate deploy` e depois `next build` automaticamente.
+3. **Variáveis de ambiente** (*Settings → Environment Variables*): `APP_URL` (ex.: `https://seu-projeto.vercel.app`
+   ou seu domínio), `APP_SECRET` e `CRON_SECRET` (gere cada um com `openssl rand -hex 32`) e as chaves das
+   integrações que for usar (veja `.env.example`). Faça o deploy.
+4. **Primeiro administrador** (uma vez, do seu computador, apontando para o banco de produção):
+   ```bash
+   DATABASE_URL="<url do banco>" APP_SECRET="<o mesmo da Vercel>" \
+   ADMIN_EMAIL="voce@empresa.com.br" ADMIN_PASSWORD="<senha forte>" npm run db:seed
+   ```
+5. **Agendamento da fila** — chame `GET /api/cron/run-jobs` com o cabeçalho `Authorization: Bearer <CRON_SECRET>`:
+   - **Plano Pro:** em `vercel.json`, troque o `schedule` para `"* * * * *"` (a cada minuto) e faça novo deploy.
+     A Vercel envia o cabeçalho automaticamente.
+   - **Plano Hobby:** o Cron da Vercel só roda uma vez por dia (já configurado como rede de segurança).
+     Use um agendador externo gratuito (ex.: cron-job.org) a cada 5 minutos, com o cabeçalho acima.
+     O endpoint responde em segundos e continua processando em segundo plano.
+   - Teste manual: `curl -H "Authorization: Bearer $CRON_SECRET" "https://SEU-APP/api/cron/run-jobs?wait=1"`.
+6. **WhatsApp:** cadastre o webhook `https://SEU-APP/api/webhooks/whatsapp` (a Vercel já fornece HTTPS).
+
+Observações: as funções ficam na região `gru1` (São Paulo), definida em `vercel.json`; a pesquisa de empresas é
+dividida em partes (`JOB_SLICE_MS`) para respeitar o tempo máximo das funções e retoma sozinha; o indicador
+“Automação ativa” considera o último ciclo agendado (até 15 minutos). Para backups, use o recurso do provedor do
+banco (Neon e Supabase oferecem restauração para um ponto no tempo) ou rode `scripts/backup.sh` de outra máquina.
+**Atenção:** pelos termos da Vercel, o plano Hobby é para uso pessoal e não comercial; para usar o sistema na sua
+atividade comercial, o plano adequado é o Pro.
 
 **Backup:** `scripts/backup.sh` gera um dump compactado, valida o arquivo e remove os antigos. Agende diariamente:
 

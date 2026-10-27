@@ -8,6 +8,7 @@ import { db } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { getSource } from "@/server/integrations/sources";
 import { enqueueJob } from "@/server/jobs/queue";
+import { kickQueue } from "@/server/jobs/kick";
 import { createCampaign, cancelCampaign, pauseCampaign, startCampaign } from "@/server/services/campaigns";
 import {
   approveMessage,
@@ -63,6 +64,7 @@ export async function createCampaignAction(_: ActionState, fd: FormData): Promis
       true,
     );
     revalidatePath("/campanhas");
+    kickQueue();
     return { ok: true, message: "Campanha iniciada.", data: { id: campaign.id } };
   });
 }
@@ -73,6 +75,7 @@ export async function campaignControlAction(campaignId: string, command: "pause"
     if (command === "pause") await pauseCampaign(campaignId, user.id);
     else if (command === "resume") await startCampaign(campaignId, user.id);
     else await cancelCampaign(campaignId, user.id);
+    if (command === "resume") kickQueue();
     revalidatePath(`/campanhas/${campaignId}`);
     revalidatePath("/campanhas");
     const messages = { pause: "Campanha pausada.", resume: "Campanha retomada.", cancel: "Campanha cancelada." };
@@ -150,6 +153,7 @@ export async function importBusinessesAction(
       await enqueueJob("lead.process", { leadId: result.leadId }, { leadId: result.leadId, idempotencyKey: `lead.process:import:${result.leadId}` });
     }
     revalidatePath("/leads");
+    kickQueue();
     return { ok: true, message: `${created} lead(s) importado(s), ${merged} já existente(s). Verificação de site agendada.` };
   });
 }
@@ -210,6 +214,7 @@ export async function messageCommandAction(
         break;
     }
     revalidateMessages(message?.leadId);
+    if (command === "approve_send" || command === "send_api" || command === "retry") kickQueue();
     return { ok: true, message: text };
   });
 }

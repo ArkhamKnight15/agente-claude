@@ -8,6 +8,7 @@ import { requireUser } from "@/server/auth/session";
 import { logoutAction } from "@/server/actions/auth";
 import { db } from "@/server/db";
 import { can } from "@/server/security/rbac";
+import { isWorkerOnline } from "@/server/jobs/scheduler";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const nav = NAV.map((group) => ({ ...group, items: group.items.filter((item) => can(user.role, item.permission)) })).filter(
     (group) => group.items.length > 0,
   );
-  const online = Boolean(heartbeat && Date.now() - heartbeat.lastSeenAt.getTime() < 60_000);
+  const online = isWorkerOnline(heartbeat);
 
   return (
     <AppShell
