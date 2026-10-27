@@ -231,15 +231,13 @@ processadas **logo após cada ação**, e o endpoint protegido **`/api/cron/run-
    A integração cria `DATABASE_URL` (com pooler) e `DATABASE_URL_UNPOOLED` (usada nas migrações).
    Com Supabase: `DATABASE_URL` = conexão do *pooler* (porta 6543) e `DIRECT_DATABASE_URL` = conexão direta (5432).
 2. **Projeto:** *Add New → Project* → importe o repositório `agente-claude` (framework Next.js detectado).
-   O script `vercel-build` roda `prisma migrate deploy` e depois `next build` automaticamente.
+   O script `vercel-build` roda as migrações, cria o administrador inicial (se não existir) e o build, automaticamente.
 3. **Variáveis de ambiente** (*Settings → Environment Variables*): `APP_URL` (ex.: `https://seu-projeto.vercel.app`
    ou seu domínio), `APP_SECRET` e `CRON_SECRET` (gere cada um com `openssl rand -hex 32`) e as chaves das
    integrações que for usar (veja `.env.example`). Faça o deploy.
-4. **Primeiro administrador** (uma vez, do seu computador, apontando para o banco de produção):
-   ```bash
-   DATABASE_URL="<url do banco>" APP_SECRET="<o mesmo da Vercel>" \
-   ADMIN_EMAIL="voce@empresa.com.br" ADMIN_PASSWORD="<senha forte>" npm run db:seed
-   ```
+4. **Primeiro administrador:** defina também `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NAME` antes do primeiro deploy.
+   O build cria o administrador (apenas se ainda não houver usuários), o pacote de R$ 500 e as configurações padrão.
+   Depois do primeiro login, você pode apagar `ADMIN_PASSWORD` das variáveis.
 5. **Agendamento da fila** — chame `GET /api/cron/run-jobs` com o cabeçalho `Authorization: Bearer <CRON_SECRET>`:
    - **Plano Pro:** em `vercel.json`, troque o `schedule` para `"* * * * *"` (a cada minuto) e faça novo deploy.
      A Vercel envia o cabeçalho automaticamente.
