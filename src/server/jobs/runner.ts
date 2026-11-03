@@ -2,13 +2,13 @@ import type { Job } from "@/generated/prisma/client";
 import { errorMessage } from "@/server/errors";
 import { createLogger } from "@/server/logger";
 import { claimNextJob, completeJob, failJob, type JobType } from "@/server/jobs/queue";
-import { JOB_HANDLERS } from "@/server/jobs/registry";
+import { JOB_HANDLERS, type JobContext } from "@/server/jobs/registry";
 import { logEvent } from "@/server/services/events";
 
 const log = createLogger("jobs");
 
 /** Executa um job já reivindicado, registrando sucesso, retentativa ou falha. */
-export async function runJob(job: Job): Promise<"succeeded" | "retry" | "failed" | "rescheduled"> {
+export async function runJob(job: Job, ctx: JobContext = {}): Promise<"succeeded" | "retry" | "failed" | "rescheduled"> {
   const handler = JOB_HANDLERS[job.type as JobType];
   if (!handler) {
     await failJob(job, new Error(`Tipo de tarefa desconhecido: ${job.type}`));
@@ -16,7 +16,7 @@ export async function runJob(job: Job): Promise<"succeeded" | "retry" | "failed"
   }
   const started = Date.now();
   try {
-    const result = await handler(job);
+    const result = await handler(job, ctx);
     if (result === "rescheduled") return "rescheduled";
     await completeJob(job.id, result);
     log.debug("Tarefa concluída", { type: job.type, id: job.id, ms: Date.now() - started });
@@ -36,9 +36,13 @@ export async function runJob(job: Job): Promise<"succeeded" | "retry" | "failed"
 }
 
 /** Reivindica e executa o próximo job disponível. Usado pelo worker e pelos testes. */
-export async function runNextJob(workerId: string, types?: JobType[]): Promise<{ job: Job; outcome: Awaited<ReturnType<typeof runJob>> } | null> {
+export async function runNextJob(
+  workerId: string,
+  types?: JobType[],
+  ctx: JobContext = {},
+): Promise<{ job: Job; outcome: Awaited<ReturnType<typeof runJob>> } | null> {
   const job = await claimNextJob(workerId, types);
   if (!job) return null;
-  const outcome = await runJob(job);
+  const outcome = await runJob(job, ctx);
   return { job, outcome };
 }

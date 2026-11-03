@@ -247,6 +247,9 @@ processadas **logo após cada ação**, e o endpoint protegido **`/api/cron/run-
      Use um agendador externo gratuito (ex.: cron-job.org) a cada 5 minutos, com o cabeçalho acima.
      O endpoint responde em segundos e continua processando em segundo plano.
    - Teste manual: `curl -H "Authorization: Bearer $CRON_SECRET" "https://SEU-APP/api/cron/run-jobs?wait=1"`.
+   - Enquanto o sistema estiver aberto, a fila também anda sozinha: as telas em andamento se atualizam e cada
+     atualização inicia um ciclo de até 150 s quando há tarefa pendente (no máximo um por vez), com 3 faixas
+     paralelas (`WORKER_CONCURRENCY`). O agendamento acima é o que mantém a fila andando com o sistema fechado.
 6. **WhatsApp:** cadastre o webhook `https://SEU-APP/api/webhooks/whatsapp` (a Vercel já fornece HTTPS).
 
 Observações: as funções ficam na região `gru1` (São Paulo), definida em `vercel.json`; a pesquisa de empresas é

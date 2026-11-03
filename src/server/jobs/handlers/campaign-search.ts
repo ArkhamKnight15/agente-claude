@@ -6,6 +6,7 @@ import { IntegrationNotConfiguredError, errorMessage, IntegrationError } from "@
 import { getSource } from "@/server/integrations/sources";
 import { enqueueJob, rescheduleJob } from "@/server/jobs/queue";
 import { getEnv } from "@/server/env";
+import type { JobContext } from "@/server/jobs/registry";
 import { pauseCampaign, readProgress, type CampaignProgress } from "@/server/services/campaigns";
 import { logEvent } from "@/server/services/events";
 import { upsertLeadFromRaw } from "@/server/services/leads";
@@ -28,8 +29,9 @@ async function isRunning(campaignId: string): Promise<boolean> {
   return c?.status === "RUNNING";
 }
 
-export async function handleCampaignSearch(job: Job): Promise<Prisma.InputJsonValue | "rescheduled"> {
-  const started = Date.now();
+export async function handleCampaignSearch(job: Job, ctx: JobContext = {}): Promise<Prisma.InputJsonValue | "rescheduled"> {
+  // Execução em partes: para ao fim da fatia ou do prazo da execução serverless, o que vier primeiro.
+  const sliceEnd = Math.min(Date.now() + getEnv().JOB_SLICE_MS, ctx.deadline ?? Number.POSITIVE_INFINITY);
   const { campaignId } = job.payload as { campaignId: string };
   const campaign = await db.campaign.findUnique({ where: { id: campaignId } });
   if (!campaign || campaign.status !== "RUNNING") return { skipped: true };
@@ -137,8 +139,7 @@ export async function handleCampaignSearch(job: Job): Promise<Prisma.InputJsonVa
     }
     await saveProgress(campaignId, progress);
     if (!(await isRunning(campaignId))) return { interrupted: true, linked: progress.linked };
-    // Execução em partes: evita estourar o tempo máximo de funções serverless.
-    if (Date.now() - started > getEnv().JOB_SLICE_MS && !progress.searchDone && progress.linked < campaign.targetCount) {
+    if (Date.now() >= sliceEnd && !progress.searchDone && progress.linked < campaign.targetCount) {
       await rescheduleJob(job, new Date(), "Pesquisa continua na próxima execução (processamento em partes).");
       return "rescheduled";
     }

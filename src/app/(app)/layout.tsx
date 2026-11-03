@@ -8,9 +8,12 @@ import { requireUser } from "@/server/auth/session";
 import { logoutAction } from "@/server/actions/auth";
 import { db } from "@/server/db";
 import { can } from "@/server/security/rbac";
+import { kickQueueIfPending } from "@/server/jobs/kick";
 import { isWorkerOnline } from "@/server/jobs/scheduler";
 
 export const dynamic = "force-dynamic";
+// Na Vercel, o processamento da fila iniciado pelas ações e páginas continua após a resposta.
+export const maxDuration = 300;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -20,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.job.count({ where: { status: "FAILED", updatedAt: { gte: new Date(Date.now() - 7 * 86400_000) } } }),
     db.workerHeartbeat.findFirst({ orderBy: { lastSeenAt: "desc" } }),
     db.lead.count({ where: { isDemo: true } }),
+    kickQueueIfPending(),
   ]);
 
   const nav = NAV.map((group) => ({ ...group, items: group.items.filter((item) => can(user.role, item.permission)) })).filter(

@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { getEnv } from "@/server/env";
 import { createLogger } from "@/server/logger";
-import { runServerlessCycle } from "@/server/jobs/scheduler";
+import { runServerlessCycle, SERVERLESS_BUDGET_MS } from "@/server/jobs/scheduler";
 import { safeEqual } from "@/server/security/crypto";
 
 /**
@@ -14,8 +14,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const log = createLogger("cron");
-// Margem para a tarefa em andamento terminar antes do limite da função.
-const BUDGET_MS = (maxDuration - 75) * 1000;
 
 export async function GET(request: Request) {
   const secret = getEnv().CRON_SECRET;
@@ -26,12 +24,12 @@ export async function GET(request: Request) {
 
   // ?wait=1 executa e devolve o resultado (útil para diagnóstico manual).
   if (new URL(request.url).searchParams.get("wait") === "1") {
-    const result = await runServerlessCycle(BUDGET_MS, "cron");
+    const result = await runServerlessCycle(SERVERLESS_BUDGET_MS, "cron");
     return NextResponse.json({ ok: true, ...result });
   }
   after(async () => {
     try {
-      const result = await runServerlessCycle(BUDGET_MS, "cron");
+      const result = await runServerlessCycle(SERVERLESS_BUDGET_MS, "cron");
       log.info("Ciclo de tarefas concluído", result);
     } catch (error) {
       log.error("Falha no ciclo de tarefas", { error });

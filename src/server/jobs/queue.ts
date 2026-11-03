@@ -76,6 +76,24 @@ export async function claimNextJob(workerId: string, types?: JobType[]): Promise
   return rows[0] ?? null;
 }
 
+/**
+ * Há tarefa pronta para rodar (mesmos critérios de claimNextJob) ou travada por uma execução
+ * interrompida (que o próximo ciclo devolve à fila)?
+ */
+export async function hasPendingWork(staleMinutes: number): Promise<boolean> {
+  const rows = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT j."id" FROM "Job" j
+    LEFT JOIN "Campaign" c ON c."id" = j."campaignId"
+    WHERE (j."campaignId" IS NULL OR c."status" = 'RUNNING')
+      AND (
+        (j."status" = 'QUEUED' AND j."runAt" <= now())
+        OR (j."status" = 'RUNNING' AND j."lockedAt" < now() - make_interval(mins => ${staleMinutes}))
+      )
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
 export async function completeJob(jobId: string, result?: Prisma.InputJsonValue): Promise<void> {
   await db.job.update({
     where: { id: jobId },

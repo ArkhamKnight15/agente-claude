@@ -184,6 +184,18 @@ describe("pipeline de campanha (integração)", () => {
     }
   });
 
+  it("a pesquisa para no prazo da execução e continua na próxima", async () => {
+    await createCampaign(
+      { state: "SP", city: "Campinas", nicheKey: "oficina-mecanica", targetCount: 10, minPriority: "MEDIUM", onlyWithoutWebsite: true, providers: ["GOOGLE_PLACES"], preferredChannel: "WHATSAPP", abTestEnabled: false },
+      adminId,
+    );
+    const first = await runNextJob("w", ["campaign.search"], { deadline: Date.now() });
+    expect(first?.outcome).toBe("rescheduled");
+    expect(searchCalls).toHaveLength(1);
+    await drainQueue();
+    expect(await db.lead.count()).toBe(5);
+  });
+
   it("não aborda novamente quem já está em negociação ou pediu para não ser contatado", async () => {
     const first = await createCampaign(
       { state: "SP", city: "Campinas", nicheKey: "oficina-mecanica", targetCount: 10, minPriority: "MEDIUM", onlyWithoutWebsite: true, providers: ["GOOGLE_PLACES"], preferredChannel: "WHATSAPP", abTestEnabled: false },
