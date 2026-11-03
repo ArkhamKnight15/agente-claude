@@ -13,19 +13,36 @@ import {
  * configurações padrão. Não cria dados de empresas.
  */
 
-async function main() {
-  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD;
-  const name = process.env.ADMIN_NAME?.trim() || "Administrador";
+/** Valor de variável sem espaços nem aspas em volta (no painel da Vercel o valor é literal). */
+function envValue(name: string): string | undefined {
+  const value = process.env[name]?.trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+  return value || undefined;
+}
 
-  if ((await db.user.count()) === 0) {
+async function main() {
+  const email = envValue("ADMIN_EMAIL")?.toLowerCase();
+  const password = envValue("ADMIN_PASSWORD");
+  const name = envValue("ADMIN_NAME") || "Administrador";
+  const resetPassword = ["1", "true", "sim"].includes(envValue("ADMIN_RESET_PASSWORD")?.toLowerCase() ?? "");
+
+  if (resetPassword || (await db.user.count()) === 0) {
     if (!email || !password) {
       throw new Error("Defina ADMIN_EMAIL e ADMIN_PASSWORD no .env para criar o primeiro administrador.");
     }
     const problem = passwordProblem(password);
     if (problem) throw new Error(`ADMIN_PASSWORD fraca: ${problem}`);
-    await db.user.create({ data: { email, name, role: "ADMIN", passwordHash: await hashPassword(password) } });
-    console.log(`✔ Administrador criado: ${email}`);
+    const passwordHash = await hashPassword(password);
+    const existing = await db.user.findUnique({ where: { email } });
+    if (existing) {
+      // Redefinição explícita: troca a senha, garante acesso de administrador, encerra as sessões e libera o bloqueio de login.
+      await db.user.update({ where: { id: existing.id }, data: { passwordHash, role: "ADMIN", active: true } });
+      await db.session.deleteMany({ where: { userId: existing.id } });
+      await db.rateLimitBucket.deleteMany({ where: { key: `login:email:${email}` } });
+      console.log(`✔ Senha do administrador redefinida: ${email} — remova ADMIN_RESET_PASSWORD das variáveis.`);
+    } else {
+      await db.user.create({ data: { email, name, role: "ADMIN", passwordHash } });
+      console.log(`✔ Administrador criado: ${email}`);
+    }
   } else {
     console.log("• Usuários já existem — administrador não recriado.");
   }

@@ -238,6 +238,8 @@ processadas **logo após cada ação**, e o endpoint protegido **`/api/cron/run-
 4. **Primeiro administrador:** defina também `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NAME` antes do primeiro deploy.
    O build cria o administrador (apenas se ainda não houver usuários), o pacote de R$ 500 e as configurações padrão.
    Depois do primeiro login, você pode apagar `ADMIN_PASSWORD` das variáveis.
+   **Esqueceu a senha?** Defina `ADMIN_RESET_PASSWORD` = `1` e a nova `ADMIN_PASSWORD` e faça *Redeploy*: o build
+   redefine a senha de `ADMIN_EMAIL`. Depois remova `ADMIN_RESET_PASSWORD`. No painel da Vercel, digite os valores sem aspas.
 5. **Agendamento da fila** — chame `GET /api/cron/run-jobs` com o cabeçalho `Authorization: Bearer <CRON_SECRET>`:
    - **Plano Pro:** em `vercel.json`, troque o `schedule` para `"* * * * *"` (a cada minuto) e faça novo deploy.
      A Vercel envia o cabeçalho automaticamente.
