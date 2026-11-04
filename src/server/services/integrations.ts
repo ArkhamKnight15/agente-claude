@@ -56,7 +56,7 @@ export async function getIntegrationStatuses(): Promise<IntegrationStatus[]> {
       name: "OpenStreetMap (Overpass API)",
       purpose: "Fonte aberta e gratuita de estabelecimentos. Cobertura varia por cidade.",
       status: env.OSM_ENABLED ? "active" : "disabled",
-      details: [`Servidor: ${env.OVERPASS_URL}`, "Dados © colaboradores do OpenStreetMap (licença ODbL)."],
+      details: [`Servidores: ${env.OVERPASS_URL.map((u) => new URL(u).host).join(", ")}`, "Dados © colaboradores do OpenStreetMap (licença ODbL)."],
       envVars: [v("OSM_ENABLED", false), { name: "OVERPASS_URL", set: true, required: false }, v("OSM_CONTACT_EMAIL", false)],
       docsUrl: "https://wiki.openstreetmap.org/wiki/Overpass_API",
       usageToday: usage.overpass ?? 0,
@@ -154,7 +154,7 @@ export async function testIntegration(key: IntegrationKey, userId: string): Prom
         break;
       }
       case "osm": {
-        const url = getEnv().OVERPASS_URL.replace(/interpreter\/?$/, "status");
+        const url = getEnv().OVERPASS_URL[0].replace(/interpreter\/?$/, "status");
         const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
         result = response.ok ? { ok: true, message: `Overpass respondeu: ${(await response.text()).split("\n")[0]?.slice(0, 120)}` } : { ok: false, message: `Overpass respondeu HTTP ${response.status}.` };
         break;

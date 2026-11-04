@@ -41,7 +41,7 @@ export function buildOverpassQuery(request: SearchRequest, maxResults: number): 
   const nameClause = `  nwr["name"~"${escapeQl(escapeRegex(request.term))}",i](area.city);`;
   const clauses = tagClauses.length ? tagClauses : [nameClause];
   return [
-    "[out:json][timeout:90];",
+    "[out:json][timeout:55];",
     `area["ISO3166-2"="BR-${escapeQl(request.state)}"]["admin_level"="4"]->.uf;`,
     `area["boundary"="administrative"]["admin_level"="8"]["name"="${escapeQl(request.city)}"](area.uf)->.city;`,
     "(",
@@ -103,6 +103,64 @@ export function mapOverpassElement(el: OverpassElement, fallbackCity: string, fa
   };
 }
 
+// Tempo total entre todos os servidores: cabe na margem do ciclo serverless (ver SERVERLESS_BUDGET_MS).
+const TOTAL_TIMEOUT_MS = 120_000;
+const SERVER_TIMEOUT_MS = 60_000;
+
+async function queryServer(url: string, query: string, contactEmail: string | undefined, timeoutMs: number): Promise<OverpassResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": contactEmail ? `${USER_AGENT} contato:${contactEmail}` : USER_AGENT,
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({ data: query }).toString(),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    throw new IntegrationError("OpenStreetMap", `Falha ao consultar a Overpass API: ${(error as Error).message}`, true);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response.ok) {
+    throw new IntegrationError(
+      "OpenStreetMap",
+      `Overpass API respondeu HTTP ${response.status}${response.status === 429 ? " (limite de uso — tente mais tarde)" : ""}.`,
+      isRetryableStatus(response.status),
+    );
+  }
+  const data = (await response.json()) as OverpassResponse;
+  if (data.remark && /runtime error|timed out/i.test(data.remark)) {
+    throw new IntegrationError("OpenStreetMap", `Overpass: ${data.remark}`, true);
+  }
+  return data;
+}
+
+/**
+ * Consulta os servidores em ordem: se um estiver sobrecarregado ou fora do ar (erro temporário),
+ * tenta o próximo. Erros definitivos (ex.: consulta inválida) não mudam de servidor.
+ */
+export async function queryOverpass(urls: string[], query: string, contactEmail?: string): Promise<OverpassResponse> {
+  const errors: string[] = [];
+  const deadline = Date.now() + TOTAL_TIMEOUT_MS;
+  for (const url of urls) {
+    const remaining = deadline - Date.now();
+    if (remaining < 10_000) break;
+    try {
+      return await queryServer(url, query, contactEmail, Math.min(SERVER_TIMEOUT_MS, remaining));
+    } catch (error) {
+      if (!(error instanceof IntegrationError) || !error.retryable) throw error;
+      errors.push(`${new URL(url).host}: ${error.message}`);
+    }
+  }
+  throw new IntegrationError("OpenStreetMap", `Nenhum servidor Overpass respondeu — ${errors.join(" | ")}`, true);
+}
+
 export const openStreetMapSource: BusinessSource = {
   provider: "OSM",
   label: "OpenStreetMap",
@@ -116,36 +174,7 @@ export const openStreetMapSource: BusinessSource = {
     await consumeQuota("overpass", 500);
 
     const query = buildOverpassQuery(request, Math.min(500, Math.max(50, request.limit * 3)));
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 100_000);
-    let response: Response;
-    try {
-      response = await fetch(env.OVERPASS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": env.OSM_CONTACT_EMAIL ? `${USER_AGENT} contato:${env.OSM_CONTACT_EMAIL}` : USER_AGENT,
-          Accept: "application/json",
-        },
-        body: new URLSearchParams({ data: query }).toString(),
-        signal: controller.signal,
-      });
-    } catch (error) {
-      throw new IntegrationError("OpenStreetMap", `Falha ao consultar a Overpass API: ${(error as Error).message}`, true);
-    } finally {
-      clearTimeout(timer);
-    }
-    if (!response.ok) {
-      throw new IntegrationError(
-        "OpenStreetMap",
-        `Overpass API respondeu HTTP ${response.status}${response.status === 429 ? " (limite de uso — tente mais tarde)" : ""}.`,
-        isRetryableStatus(response.status),
-      );
-    }
-    const data = (await response.json()) as OverpassResponse;
-    if (data.remark && /runtime error|timed out/i.test(data.remark)) {
-      throw new IntegrationError("OpenStreetMap", `Overpass: ${data.remark}`, true);
-    }
+    const data = await queryOverpass(env.OVERPASS_URL, query, env.OSM_CONTACT_EMAIL);
     const cityKey = normalizeText(request.city);
     const items = (data.elements ?? [])
       .map((el) => mapOverpassElement(el, request.city, request.state))

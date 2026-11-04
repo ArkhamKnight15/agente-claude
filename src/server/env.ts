@@ -40,7 +40,14 @@ const schema = z.object({
   GOOGLE_PLACES_API_KEY: optional,
   PLACES_DAILY_LIMIT: int(300),
   OSM_ENABLED: bool(true),
-  OVERPASS_URL: z.string().url().default("https://overpass-api.de/api/interpreter"),
+  // Um ou mais servidores Overpass separados por vírgula: se um estiver fora do ar, usa o próximo.
+  OVERPASS_URL: z
+    .string()
+    .default(
+      "https://overpass-api.de/api/interpreter,https://overpass.private.coffee/api/interpreter,https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    )
+    .transform((v) => v.split(",").map((u) => u.trim()).filter(Boolean))
+    .pipe(z.array(z.string().url()).min(1)),
   OSM_CONTACT_EMAIL: optional,
 
   // Busca web (verificação de sites)

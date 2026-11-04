@@ -126,7 +126,7 @@ Todas as credenciais ficam no `.env` do servidor. Depois de alterar, reinicie a 
 | Integração | Variáveis | Como obter |
 | --- | --- | --- |
 | Google Places API (New) | `GOOGLE_PLACES_API_KEY` | Google Cloud Console → crie um projeto → ative **Places API (New)** → habilite o faturamento → *Credenciais* → chave de API (restrinja por IP do servidor e à Places API). |
-| OpenStreetMap | `OSM_ENABLED=true` (padrão) | Gratuito, sem chave. Informe `OSM_CONTACT_EMAIL` para identificar o tráfego. Cobertura varia por cidade. |
+| OpenStreetMap | `OSM_ENABLED=true` (padrão), `OVERPASS_URL` | Gratuito, sem chave. Informe `OSM_CONTACT_EMAIL` para identificar o tráfego. Cobertura varia por cidade. `OVERPASS_URL` aceita vários servidores separados por vírgula: se um estiver sobrecarregado, o próximo é usado (padrão: overpass-api.de, overpass.private.coffee e maps.mail.ru). |
 | Busca web | `SEARCH_PROVIDER` + chave | **Brave Search API** (`BRAVE_SEARCH_API_KEY`, api-dashboard.search.brave.com) ou **Serper** (`SERPER_API_KEY`, serper.dev). Google Programmable Search (`GOOGLE_CSE_API_KEY` + `GOOGLE_CSE_CX`) só se você já tiver acesso — o Google encerrou o produto para novos clientes. Sem busca web, nenhuma empresa é marcada como “sem site confirmado”. |
 | IA (Claude API) | `ANTHROPIC_API_KEY`, `LLM_MODEL`, `LLM_EFFORT` | console.anthropic.com → API Keys. Padrão: `claude-opus-5-5` com esforço `medium`. |
 | E-mail (envio) | `SMTP_*`, `EMAIL_FROM` | SMTP do seu provedor (Google Workspace com senha de app, Zoho, Amazon SES, Brevo…). Configure **SPF, DKIM e DMARC** no domínio. |
@@ -170,7 +170,7 @@ O sistema usa a **WhatsApp Business Platform (Cloud API)** da Meta. A ativação
 
 ## O que funciona sem credenciais e o que depende delas
 
-**Funciona sem nenhuma credencial externa:** login e usuários, CRM completo, funil, fichas, notas, tarefas, propostas com PDF, pontuação, mensagens por modelo padrão, fila de revisão e aprovação, envio manual assistido (`wa.me`/`mailto`), dashboard, relatórios, exportação CSV/JSON, LGPD (supressão, exclusão, descadastro), auditoria e fila de tarefas. O **OpenStreetMap** funciona sem chave (exige acesso à internet a `overpass-api.de`).
+**Funciona sem nenhuma credencial externa:** login e usuários, CRM completo, funil, fichas, notas, tarefas, propostas com PDF, pontuação, mensagens por modelo padrão, fila de revisão e aprovação, envio manual assistido (`wa.me`/`mailto`), dashboard, relatórios, exportação CSV/JSON, LGPD (supressão, exclusão, descadastro), auditoria e fila de tarefas. O **OpenStreetMap** funciona sem chave (exige acesso à internet a um servidor Overpass público).
 
 **Depende de credenciais/serviços externos:**
 

@@ -1,7 +1,7 @@
 import type { Job, Prisma } from "@/generated/prisma/client";
 import { db } from "@/server/db";
 import { pendingJobCount, rescheduleJob } from "@/server/jobs/queue";
-import { computeCampaignReport, readProgress } from "@/server/services/campaigns";
+import { computeCampaignReport, pauseCampaign, readProgress } from "@/server/services/campaigns";
 import { logEvent } from "@/server/services/events";
 
 /** Etapa 13: quando a pesquisa e todos os leads foram processados, gera o relatório. */
@@ -12,6 +12,17 @@ export async function handleCampaignFinalize(job: Job): Promise<Prisma.InputJson
 
   const progress = readProgress(campaign);
   const pending = await pendingJobCount(campaignId, ["campaign.search", "lead.process"]);
+  if (!progress.searchDone && pending === 0) {
+    // A pesquisa esgotou as tentativas: pausa com o motivo em vez de esperar para sempre.
+    const failedSearch = await db.job.findFirst({
+      where: { campaignId, type: "campaign.search", status: "FAILED" },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (failedSearch) {
+      await pauseCampaign(campaignId, null, `A pesquisa falhou (${failedSearch.lastError ?? "erro desconhecido"}). Toque em Retomar para tentar de novo.`);
+      return { paused: true };
+    }
+  }
   if (!progress.searchDone || pending > 0) {
     await rescheduleJob(job, new Date(Date.now() + 20_000), `Aguardando ${pending} tarefa(s) da campanha.`);
     return "rescheduled";

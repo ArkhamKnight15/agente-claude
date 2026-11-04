@@ -196,6 +196,26 @@ describe("pipeline de campanha (integração)", () => {
     expect(await db.lead.count()).toBe(5);
   });
 
+  it("pausa com o motivo quando a pesquisa esgota as tentativas e retoma depois", async () => {
+    const campaign = await createCampaign(
+      { state: "SP", city: "Campinas", nicheKey: "oficina-mecanica", targetCount: 10, minPriority: "MEDIUM", onlyWithoutWebsite: true, providers: ["GOOGLE_PLACES"], preferredChannel: "WHATSAPP", abTestEnabled: false },
+      adminId,
+    );
+    await db.job.updateMany({
+      where: { campaignId: campaign.id, type: "campaign.search" },
+      data: { status: "FAILED", lastError: "Overpass API respondeu HTTP 502." },
+    });
+    await drainQueue();
+    const paused = await db.campaign.findUniqueOrThrow({ where: { id: campaign.id } });
+    expect(paused.status).toBe("PAUSED");
+    expect(paused.lastError).toMatch(/HTTP 502.*Retomar/);
+
+    await startCampaign(campaign.id, adminId);
+    await drainQueue();
+    expect((await db.campaign.findUniqueOrThrow({ where: { id: campaign.id } })).status).toBe("COMPLETED");
+    expect(await db.lead.count()).toBe(5);
+  });
+
   it("não aborda novamente quem já está em negociação ou pediu para não ser contatado", async () => {
     const first = await createCampaign(
       { state: "SP", city: "Campinas", nicheKey: "oficina-mecanica", targetCount: 10, minPriority: "MEDIUM", onlyWithoutWebsite: true, providers: ["GOOGLE_PLACES"], preferredChannel: "WHATSAPP", abTestEnabled: false },

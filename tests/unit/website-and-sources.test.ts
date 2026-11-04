@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { assessWebsiteQuality, decideWebsiteStatus, extractSignals, type CandidateEvaluation } from "@/lib/agent/website-analysis";
 import { rootDisallowed } from "@/server/agent/robots";
 import { __test as httpTest } from "@/server/integrations/http";
 import { mapGooglePlace } from "@/server/integrations/sources/google-places";
-import { buildOverpassQuery, mapOverpassElement } from "@/server/integrations/sources/openstreetmap";
+import { buildOverpassQuery, mapOverpassElement, queryOverpass } from "@/server/integrations/sources/openstreetmap";
 import { classifyUrl, normalizeWebsiteUrl, registrableDomain } from "@/lib/url";
 
 const business = { name: "Oficina Silva", city: "Campinas", phoneE164: "+5519987654321" };
@@ -140,5 +140,27 @@ describe("fontes de empresas", () => {
     expect(q).toContain('["ISO3166-2"="BR-SP"]');
     expect(q).toContain('["name"="Santa Bárbara d\'Oeste"]');
     expect(q).toContain('pet \\"shop\\"');
+  });
+
+  describe("servidores Overpass", () => {
+    const servers = ["https://a.example/api/interpreter", "https://b.example/api/interpreter"];
+    const reply = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("usa o próximo servidor quando um está sobrecarregado", async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(reply(502)).mockResolvedValueOnce(reply(200, { elements: [{ type: "node", id: 1 }] }));
+      vi.stubGlobal("fetch", fetchMock);
+      const data = await queryOverpass(servers, "[out:json];");
+      expect(data.elements).toHaveLength(1);
+      expect(fetchMock.mock.calls.map((c) => c[0])).toEqual(servers);
+    });
+
+    it("não troca de servidor em erro definitivo e informa todos quando nenhum responde", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply(400)));
+      await expect(queryOverpass(servers, "x")).rejects.toMatchObject({ retryable: false });
+
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply(504)));
+      await expect(queryOverpass(servers, "x")).rejects.toThrow(/a\.example.*b\.example/);
+    });
   });
 });
