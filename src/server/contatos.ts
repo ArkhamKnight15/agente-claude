@@ -132,6 +132,12 @@ export async function listarContatos(filtro: FiltroContatos = {}, limite = 300):
   return linhas.map(paraContato);
 }
 
+/** Estado atual de contatos já exibidos (para refletir o que foi feito em outro aparelho). */
+export async function contatosPorIds(ids: string[]): Promise<Contato[]> {
+  if (ids.length === 0) return [];
+  return (await sql<Linha>("SELECT * FROM prospecta_contatos WHERE id = ANY($1)", [ids])).map(paraContato);
+}
+
 export type ContagemStatus = Record<ContatoStatus, number> & { total: number };
 
 export async function contarPorStatus(): Promise<ContagemStatus> {

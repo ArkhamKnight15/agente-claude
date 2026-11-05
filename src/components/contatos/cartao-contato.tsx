@@ -29,6 +29,13 @@ export function CartaoContato({ contato: inicial, config, comObservacao, aoAtual
   const [texto, setTexto] = useState(() => montarMensagem(config.modelo, inicial, config));
   const [perguntarEnvio, setPerguntarEnvio] = useState(false);
   const [observacao, setObservacao] = useState(inicial.observacao ?? "");
+  // Quando o contato muda fora deste cartão (ex.: em outro aparelho), mostra a versão nova.
+  const [versao, setVersao] = useState(inicial.atualizadoEm);
+  if (inicial.atualizadoEm !== versao) {
+    setVersao(inicial.atualizadoEm);
+    setContato(inicial);
+    setObservacao(inicial.observacao ?? "");
+  }
   const [salvando, iniciar] = useTransition();
   const notificar = useNotificar();
   const id = useId();

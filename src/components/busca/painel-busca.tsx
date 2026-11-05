@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, SearchX } from "lucide-react";
-import { useEffect, useId, useState, useTransition, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react";
 import { CartaoContato } from "@/components/contatos/cartao-contato";
 import { Aviso } from "@/components/ui/aviso";
 import { Botao } from "@/components/ui/botao";
@@ -11,8 +11,8 @@ import { ESTADOS } from "@/data/estados";
 import { NICHO_OUTRO, NICHOS } from "@/data/nichos";
 import { plural } from "@/lib/formato";
 import { normalizarTexto } from "@/lib/texto";
-import { buscarAcao } from "@/server/acoes";
-import type { BuscaResultado, ConfigMensagem, FonteEscolhida } from "@/types";
+import { buscarAcao, contatosAtuaisAcao } from "@/server/acoes";
+import type { BuscaResultado, ConfigMensagem, Contato, FonteEscolhida } from "@/types";
 
 interface Filtros {
   uf: string;
@@ -50,6 +50,9 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
   const [erro, setErro] = useState<string>();
   const [resultado, setResultado] = useState<BuscaResultado | null>(null);
   const [mostrarComSite, setMostrarComSite] = useState(false);
+  const [mostrarJaChamados, setMostrarJaChamados] = useState(false);
+  // Quem você marcou nesta tela continua visível até a próxima busca (a lista não "pula").
+  const [marcadosAqui, setMarcadosAqui] = useState<ReadonlySet<string>>(new Set());
   const [buscando, iniciar] = useTransition();
   const [consultasHoje, setConsultasHoje] = useState(usadasHoje);
 
@@ -68,6 +71,32 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
       ativo = false;
     };
   }, [filtros.uf]);
+
+  const atualizarNoResultado = useCallback((contatos: Contato[]) => {
+    const porId = new Map(contatos.map((c) => [c.id, c]));
+    setResultado((r) => r && { ...r, contatos: r.contatos.map((c) => porId.get(c.id) ?? c) });
+  }, []);
+
+  // Ao voltar para o app (do WhatsApp ou de outro aparelho), confere o andamento atual:
+  // quem foi chamado em outro lugar sai da lista e não recebe mensagem duas vezes.
+  const conferindo = useRef(false);
+  const idsExibidos = resultado?.contatos.map((c) => c.id).join(",") ?? "";
+  useEffect(() => {
+    if (!idsExibidos) return;
+    async function conferir() {
+      if (document.visibilityState !== "visible" || conferindo.current) return;
+      conferindo.current = true;
+      const r = await contatosAtuaisAcao(idsExibidos.split(","));
+      conferindo.current = false;
+      if (r.ok) atualizarNoResultado(r.data);
+    }
+    document.addEventListener("visibilitychange", conferir);
+    window.addEventListener("focus", conferir);
+    return () => {
+      document.removeEventListener("visibilitychange", conferir);
+      window.removeEventListener("focus", conferir);
+    };
+  }, [idsExibidos, atualizarNoResultado]);
 
   const fonteEfetiva = filtros.fonte === "auto" ? (googleDisponivel ? "google" : "osm") : filtros.fonte;
   const consultasPrevistas = fonteEfetiva === "google" ? filtros.quantidade / 20 : 0;
@@ -96,6 +125,7 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
       const r = await buscarAcao({ ...busca, termo: busca.nicho === NICHO_OUTRO ? busca.termo : undefined });
       if (r.ok) {
         setResultado(r.data);
+        setMarcadosAqui(new Set());
         if (r.data.fonte === "google") setConsultasHoje((n) => n + r.data.consultas);
       } else {
         setErro(r.error);
@@ -103,9 +133,18 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
     });
   }
 
-  const oportunidades = resultado?.contatos.filter((c) => c.siteStatus !== "com_site") ?? [];
-  const comSite = resultado?.contatos.filter((c) => c.siteStatus === "com_site") ?? [];
-  const visiveis = mostrarComSite ? (resultado?.contatos ?? []) : oportunidades;
+  const todos = resultado?.contatos ?? [];
+  const jaChamado = (c: Contato) => c.status !== "novo" && !marcadosAqui.has(c.id);
+  const jaChamados = todos.filter(jaChamado);
+  const paraChamar = todos.filter((c) => !jaChamado(c));
+  const oportunidades = paraChamar.filter((c) => c.siteStatus !== "com_site");
+  const comSite = paraChamar.filter((c) => c.siteStatus === "com_site");
+  const visiveis = todos.filter((c) => (mostrarComSite || c.siteStatus !== "com_site") && (mostrarJaChamados || !jaChamado(c)));
+
+  function aoAtualizarContato(contato: Contato) {
+    setMarcadosAqui((atual) => new Set(atual).add(contato.id));
+    atualizarNoResultado([contato]);
+  }
 
   return (
     <div className="space-y-6">
@@ -214,38 +253,54 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-18 font-semibold">{plural(oportunidades.length, "oportunidade", "oportunidades")} em {resultado.contatos[0]?.cidade ?? filtros.cidade}</h2>
+                <h2 className="text-18 font-semibold">
+                  {plural(oportunidades.length, "empresa para chamar", "empresas para chamar")} em {todos[0]?.cidade ?? filtros.cidade}
+                </h2>
                 <p className="mt-0.5 text-13 text-fg-3">
                   {[
                     `${plural(resultado.recebidas, "empresa recebida", "empresas recebidas")} do ${resultado.fonte === "google" ? "Google" : "OpenStreetMap"}`,
                     resultado.novas ? plural(resultado.novas, "nova", "novas") : "nenhuma nova",
                     resultado.foraDaCidade ? plural(resultado.foraDaCidade, "de outra cidade (ignorada)", "de outras cidades (ignoradas)") : null,
                     resultado.fechadas ? plural(resultado.fechadas, "fechada (ignorada)", "fechadas (ignoradas)") : null,
+                    jaChamados.length ? plural(jaChamados.length, "que você já chamou (oculta)", "que você já chamou (ocultas)") : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
               </div>
-              {comSite.length ? (
-                <label className="inline-flex cursor-pointer items-center gap-2 text-14 text-fg-2">
-                  <input type="checkbox" checked={mostrarComSite} onChange={(e) => setMostrarComSite(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-                  Mostrar também quem já tem site ({comSite.length})
-                </label>
-              ) : null}
+              <div className="flex flex-col gap-2 sm:items-end">
+                {jaChamados.length ? (
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-14 text-fg-2">
+                    <input type="checkbox" checked={mostrarJaChamados} onChange={(e) => setMostrarJaChamados(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+                    Mostrar quem já chamei ({jaChamados.length})
+                  </label>
+                ) : null}
+                {comSite.length ? (
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-14 text-fg-2">
+                    <input type="checkbox" checked={mostrarComSite} onChange={(e) => setMostrarComSite(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+                    Mostrar também quem já tem site ({comSite.length})
+                  </label>
+                ) : null}
+              </div>
             </div>
             {visiveis.length ? (
               <ul className="grid gap-3 lg:grid-cols-2">
                 {visiveis.map((c) => (
                   <li key={c.id}>
-                    <CartaoContato contato={c} config={config} />
+                    <CartaoContato contato={c} config={config} aoAtualizar={aoAtualizarContato} />
                   </li>
                 ))}
               </ul>
             ) : (
-              <Vazio icone={<SearchX />} titulo="Nenhuma empresa sem site nesta busca">
-                {resultado.contatos.length
-                  ? "Todas as empresas encontradas já têm site. Tente outro tipo de empresa ou outra cidade."
-                  : "A fonte não trouxe empresas para esta cidade e tipo. Tente outro termo, outra cidade ou outra fonte."}
+              <Vazio
+                icone={<SearchX />}
+                titulo={jaChamados.length && !oportunidades.length ? "Você já chamou todas as empresas sem site desta busca" : "Nenhuma empresa sem site nesta busca"}
+              >
+                {!todos.length
+                  ? "A fonte não trouxe empresas para esta cidade e tipo. Tente outro termo, outra cidade ou outra fonte."
+                  : jaChamados.length
+                    ? "Para encontrar empresas novas, tente outro tipo de empresa, outra cidade ou uma quantidade maior."
+                    : "Todas as empresas encontradas já têm site. Tente outro tipo de empresa ou outra cidade."}
               </Vazio>
             )}
           </>

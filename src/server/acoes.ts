@@ -8,7 +8,7 @@ import type { BuscaResultado, ConfigMensagem, Contato, Resultado } from "@/types
 import { entrar, exigirLogin, sair } from "./auth";
 import { executarBusca } from "./busca";
 import { salvarConfig } from "./config";
-import { atualizarContato } from "./contatos";
+import { atualizarContato, contatosPorIds } from "./contatos";
 import { ErroDeUsuario, mensagemDeErro } from "./erros";
 
 async function executar<T>(fn: () => Promise<T>): Promise<Resultado<T>> {
@@ -72,6 +72,13 @@ export async function atualizarContatoAcao(id: string, mudancas: z.input<typeof 
     if (!contato) throw new ErroDeUsuario("Contato não encontrado.");
     revalidatePath("/contatos");
     return contato;
+  });
+}
+
+export async function contatosAtuaisAcao(ids: string[]): Promise<Resultado<Contato[]>> {
+  return executar(async () => {
+    await exigirLogin();
+    return contatosPorIds(z.array(z.string().min(3).max(200)).max(200).parse(ids));
   });
 }
 

@@ -14,7 +14,9 @@ Funciona no computador e no celular, com a mesma lista de contatos nos dois.
    Não contatar), anote observações, busque por nome ou telefone e exporte a planilha.
 
 O andamento fica salvo no banco: uma nova busca nunca apaga o que você já fez, e a mesma empresa
-(mesmo telefone) não aparece duplicada. Quem pediu para **não ser contatado** fica com o envio bloqueado.
+(mesmo telefone) não aparece duplicada. **Quem você já chamou não aparece de novo na busca** (dá para
+mostrar com “Mostrar quem já chamei”); ao voltar para o app, a lista confere o que foi feito em outro
+aparelho. Quem pediu para **não ser contatado** fica com o envio bloqueado.
 
 “Sem site” significa que a fonte não informa site. Use **Conferir site** (abre a busca no Google)
 antes de afirmar isso para o cliente.

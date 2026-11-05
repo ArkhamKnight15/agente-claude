@@ -35,7 +35,7 @@ test("configura a mensagem, busca, envia pelo WhatsApp e acompanha o contato", a
   await page.getByLabel("Cidade").fill("campinas");
   await page.getByLabel("Quantidade").selectOption("40");
   await page.getByRole("button", { name: "Buscar empresas" }).click();
-  await expect(page.getByRole("heading", { name: "3 oportunidades em Campinas" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "3 empresas para chamar em Campinas" })).toBeVisible();
   await expect(page.getByText(/1 de outra cidade \(ignorada\) · 1 fechada \(ignorada\)/)).toBeVisible();
 
   const joao = page.getByRole("article", { name: "Barbearia do João" });
@@ -64,12 +64,39 @@ test("configura a mensagem, busca, envia pelo WhatsApp e acompanha o contato", a
   await expect(corte.getByRole("link", { name: /WhatsApp|Abrir conversa/ })).toHaveCount(0);
   await expect(corte.getByRole("button", { name: "Copiar" })).toHaveCount(0);
 
+  // Quem você acabou de marcar continua à vista; numa nova busca, quem já foi chamado some.
+  await expect(joao).toBeVisible();
+  await page.getByLabel(/Mostrar também quem já tem site/).uncheck();
+  await page.getByRole("button", { name: "Buscar empresas" }).click();
+  await expect(page.getByRole("heading", { name: "1 empresa para chamar em Campinas" })).toBeVisible();
+  await expect(page.getByText(/2 que você já chamou \(ocultas\)/)).toBeVisible();
+  await expect(joao).toHaveCount(0);
+  await page.getByLabel(/Mostrar quem já chamei \(2\)/).check();
+  await expect(joao.getByLabel("Andamento do contato")).toHaveValue("enviado");
+  await page.getByLabel(/Mostrar quem já chamei/).uncheck();
+
+  // Chamado em outro aparelho: ao voltar para esta tela, a empresa sai da lista.
+  const outroAparelho = await context.newPage();
+  await outroAparelho.goto("/contatos");
+  await outroAparelho.getByRole("article", { name: "Navalha de Ouro" }).getByLabel("Andamento do contato").selectOption("respondeu");
+  await expect(outroAparelho.getByText(/Andamento: Respondeu/)).toBeVisible();
+  await outroAparelho.close();
+  await page.bringToFront();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByRole("article", { name: "Navalha de Ouro" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Você já chamou todas as empresas sem site/ })).toBeVisible();
+
   // Contatos
   await page.getByRole("link", { name: "Contatos", exact: true }).first().click();
   await expect(page.getByText(/4 empresas salvas/)).toBeVisible();
   await page.getByRole("link", { name: /^Mensagem enviada/ }).click();
   await expect(page.getByRole("article")).toHaveCount(1);
   await expect(page.getByRole("article", { name: "Barbearia do João" }).getByText(/Contatado em/)).toBeVisible();
+  await page.getByRole("link", { name: /^Todos/ }).click();
+  await page.getByRole("article", { name: "Navalha de Ouro" }).getByLabel("Andamento do contato").selectOption("novo");
+  await expect(page.getByText(/Andamento: Novo/)).toBeVisible();
+  await page.getByRole("link", { name: /^Mensagem enviada/ }).click();
+  await expect(page.getByRole("article")).toHaveCount(1);
 
   const obs = page.getByRole("article", { name: "Barbearia do João" }).getByLabel("Observação");
   await obs.fill("Pediu para chamar sexta");
