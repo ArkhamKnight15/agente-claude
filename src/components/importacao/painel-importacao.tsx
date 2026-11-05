@@ -168,7 +168,7 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
       ) : null}
 
       {previa ? (
-        <section aria-labelledby={`${id}-previa`} className="space-y-4">
+        <section aria-labelledby={`${id}-previa`} className="space-y-4 pb-20 sm:pb-0">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 id={`${id}-previa`} className="text-18 font-semibold">
@@ -185,10 +185,13 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
                   .join(" · ")}
                 {previa.excedeu ? ` · só as primeiras ${MAX_LINHAS_IMPORTACAO} linhas` : ""}
               </p>
+              <p className="mt-1 text-13 font-medium text-warning">Ainda não foi salvo: confira e toque em Importar.</p>
             </div>
-            <Botao variante="primario" tamanho="lg" icone={<FileUp aria-hidden />} carregando={importando} disabled={validas === 0} onClick={importar} className="w-full sm:w-auto">
-              {validas ? `Importar ${plural(validas, "empresa", "empresas")}` : "Nada para importar"}
-            </Botao>
+            <div className="hidden sm:block">
+              <Botao variante="primario" tamanho="lg" icone={<FileUp aria-hidden />} carregando={importando} disabled={validas === 0} onClick={importar}>
+                {validas ? `Importar ${plural(validas, "empresa", "empresas")}` : "Nada para importar"}
+              </Botao>
+            </div>
           </div>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {previa.itens.map((item) => (
@@ -224,12 +227,15 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
               </li>
             ))}
           </ul>
-          {/* No celular a lista é longa: repete o botão no fim para não precisar voltar ao topo. */}
-          {previa.itens.length > 3 ? (
-            <Botao variante="primario" tamanho="lg" icone={<FileUp aria-hidden />} carregando={importando} disabled={validas === 0} onClick={importar} className="w-full sm:hidden">
+          {/* No celular o botão fica fixo logo acima da barra de navegação enquanto a prévia está aberta. */}
+          <div
+            className="fixed inset-x-0 bottom-16 z-40 border-t border-border bg-bg/95 px-4 py-3 backdrop-blur sm:hidden"
+            style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <Botao variante="primario" tamanho="lg" icone={<FileUp aria-hidden />} carregando={importando} disabled={validas === 0} onClick={importar} className="w-full">
               {validas ? `Importar ${plural(validas, "empresa", "empresas")}` : "Nada para importar"}
             </Botao>
-          ) : null}
+          </div>
         </section>
       ) : null}
     </div>
