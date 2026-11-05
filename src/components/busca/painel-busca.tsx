@@ -76,6 +76,10 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
     const porId = new Map(contatos.map((c) => [c.id, c]));
     setResultado((r) => r && { ...r, contatos: r.contatos.map((c) => porId.get(c.id) ?? c) });
   }, []);
+  const removerDoResultado = useCallback((ids: string[]) => {
+    const remover = new Set(ids);
+    setResultado((r) => r && { ...r, contatos: r.contatos.filter((c) => !remover.has(c.id)), excluidas: r.excluidas + remover.size });
+  }, []);
 
   // Ao voltar para o app (do WhatsApp ou de outro aparelho), confere o andamento atual:
   // quem foi chamado em outro lugar sai da lista e não recebe mensagem duas vezes.
@@ -88,7 +92,10 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
       conferindo.current = true;
       const r = await contatosAtuaisAcao(idsExibidos.split(","));
       conferindo.current = false;
-      if (r.ok) atualizarNoResultado(r.data);
+      if (r.ok) {
+        atualizarNoResultado(r.data.contatos);
+        if (r.data.excluidos.length) removerDoResultado(r.data.excluidos);
+      }
     }
     document.addEventListener("visibilitychange", conferir);
     window.addEventListener("focus", conferir);
@@ -96,7 +103,7 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
       document.removeEventListener("visibilitychange", conferir);
       window.removeEventListener("focus", conferir);
     };
-  }, [idsExibidos, atualizarNoResultado]);
+  }, [idsExibidos, atualizarNoResultado, removerDoResultado]);
 
   const fonteEfetiva = filtros.fonte === "auto" ? (googleDisponivel ? "google" : "osm") : filtros.fonte;
   const consultasPrevistas = fonteEfetiva === "google" ? filtros.quantidade / 20 : 0;
@@ -263,6 +270,7 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
                     resultado.foraDaCidade ? plural(resultado.foraDaCidade, "de outra cidade (ignorada)", "de outras cidades (ignoradas)") : null,
                     resultado.fechadas ? plural(resultado.fechadas, "fechada (ignorada)", "fechadas (ignoradas)") : null,
                     jaChamados.length ? plural(jaChamados.length, "que você já chamou (oculta)", "que você já chamou (ocultas)") : null,
+                    resultado.excluidas ? plural(resultado.excluidas, "que você excluiu (ignorada)", "que você excluiu (ignoradas)") : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
@@ -287,7 +295,7 @@ export function PainelBusca({ config, googleDisponivel, limiteGoogle, usadasHoje
               <ul className="grid gap-3 lg:grid-cols-2">
                 {visiveis.map((c) => (
                   <li key={c.id}>
-                    <CartaoContato contato={c} config={config} aoAtualizar={aoAtualizarContato} />
+                    <CartaoContato contato={c} config={config} aoAtualizar={aoAtualizarContato} aoExcluir={(idExcluido) => removerDoResultado([idExcluido])} />
                   </li>
                 ))}
               </ul>

@@ -10,13 +10,16 @@ Funciona no computador e no celular, com a mesma lista de contatos nos dois.
    (Instagram, iFood, Linktree…). Empresas fechadas ou de outras cidades são ignoradas.
 2. **Enviar:** cada empresa vem com a mensagem pronta e editável. **Enviar no WhatsApp** abre a conversa
    com o texto; quem envia é você. Depois o app pergunta se você enviou e marca como **Mensagem enviada**.
-3. **Acompanhar:** em **Contatos**, mude o andamento (Respondeu, Interessado, Cliente, Sem interesse,
-   Não contatar), anote observações, busque por nome ou telefone e exporte a planilha.
+3. **Acompanhar:** em cada cartão, marque o andamento em três etapas — **Enviada**, **Respondeu** e
+   **Cliente** (tocar na etapa marcada desmarca). Em **Contatos**, filtre por etapa, anote observações,
+   busque por nome ou telefone e exporte a planilha.
+4. **Excluir:** a lixeira vermelha (com confirmação) tira a empresa dos seus contatos. Ela **não volta**
+   em novas buscas nem importações — use também para quem pediu para não receber mensagens.
 
 O andamento fica salvo no banco: uma nova busca nunca apaga o que você já fez, e a mesma empresa
 (mesmo telefone) não aparece duplicada. **Quem você já chamou não aparece de novo na busca** (dá para
 mostrar com “Mostrar quem já chamei”); ao voltar para o app, a lista confere o que foi feito em outro
-aparelho. Quem pediu para **não ser contatado** fica com o envio bloqueado.
+aparelho.
 
 “Sem site” significa que a fonte não informa site. Use **Conferir site** (abre a busca no Google)
 antes de afirmar isso para o cliente.

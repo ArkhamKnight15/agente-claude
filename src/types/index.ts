@@ -8,7 +8,8 @@ export type SiteStatus = "sem_site" | "so_perfil" | "com_site";
 
 export type TelefoneTipo = "celular" | "fixo" | "desconhecido";
 
-export type ContatoStatus = "novo" | "enviado" | "respondeu" | "interessado" | "fechado" | "sem_interesse" | "nao_contatar";
+/** Andamento do contato. Quem você não quer mais (ou pediu para não receber) é excluído, e não volta nas buscas. */
+export type ContatoStatus = "novo" | "enviado" | "respondeu" | "fechado";
 
 /** Empresa como veio da fonte, já normalizada. */
 export interface Empresa {
@@ -66,6 +67,7 @@ export interface BuscaResultado {
   foraDaCidade: number;
   fechadas: number;
   novas: number;
+  excluidas: number;
 }
 
 export type Resultado<T> = { ok: true; data: T } | { ok: false; error: string };

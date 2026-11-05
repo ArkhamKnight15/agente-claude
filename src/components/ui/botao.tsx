@@ -2,7 +2,7 @@ import { LoaderCircle } from "lucide-react";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-type Variante = "primario" | "secundario" | "fantasma" | "whatsapp" | "perigo";
+type Variante = "primario" | "secundario" | "fantasma" | "whatsapp" | "perigo" | "perigo-solido";
 type Tamanho = "sm" | "md" | "lg";
 
 const VARIANTES: Record<Variante, string> = {
@@ -11,6 +11,7 @@ const VARIANTES: Record<Variante, string> = {
   fantasma: "text-fg-2 hover:bg-surface-2 hover:text-fg",
   whatsapp: "bg-whatsapp text-white hover:bg-whatsapp-hover shadow-sm",
   perigo: "border border-danger/40 bg-surface text-danger hover:bg-danger-soft",
+  "perigo-solido": "bg-[var(--perigo-solido)] text-white hover:bg-[var(--perigo-solido-hover)] shadow-sm",
 };
 
 const TAMANHOS: Record<Tamanho, string> = {

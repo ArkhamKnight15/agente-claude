@@ -24,6 +24,7 @@ const SITUACAO: Record<ItemPrevia["situacao"], { rotulo: string; tom: Tom }> = {
   nova: { rotulo: "Nova", tom: "sucesso" },
   existente: { rotulo: "Já salva", tom: "neutro" },
   ja_chamada: { rotulo: "Já chamada", tom: "info" },
+  excluida: { rotulo: "Excluída (ignorada)", tom: "neutro" },
   erro: { rotulo: "Erro", tom: "perigo" },
 };
 
@@ -38,7 +39,7 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
   const [prevendo, iniciarPrevia] = useTransition();
   const [importando, iniciarImportacao] = useTransition();
 
-  const validas = previa ? previa.itens.length - previa.erros : 0;
+  const validas = previa ? previa.itens.length - previa.erros - previa.excluidas : 0;
 
   function verPrevia() {
     setErro(undefined);
@@ -95,7 +96,11 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
             <ul className="grid gap-3 lg:grid-cols-2">
               {paraChamar.map((c) => (
                 <li key={c.id}>
-                  <CartaoContato contato={c} config={config} />
+                  <CartaoContato
+                    contato={c}
+                    config={config}
+                    aoExcluir={(idExcluido) => setImportados((r) => r && { ...r, contatos: r.contatos.filter((x) => x.id !== idExcluido) })}
+                  />
                 </li>
               ))}
             </ul>
@@ -179,6 +184,7 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
                   plural(previa.novas, "nova", "novas"),
                   previa.existentes ? plural(previa.existentes, "já salva", "já salvas") : null,
                   previa.jaChamadas ? plural(previa.jaChamadas, "já chamada", "já chamadas") : null,
+                  previa.excluidas ? plural(previa.excluidas, "que você excluiu (ignorada)", "que você excluiu (ignoradas)") : null,
                   previa.erros ? plural(previa.erros, "com erro (ignorada)", "com erro (ignoradas)") : null,
                 ]
                   .filter(Boolean)

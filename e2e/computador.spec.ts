@@ -50,36 +50,58 @@ test("configura a mensagem, busca, envia pelo WhatsApp e acompanha o contato", a
   await page.getByLabel(/Mostrar também quem já tem site/).check();
   await expect(page.getByRole("article", { name: "Studio Barba" })).toBeVisible();
 
-  // Abrir o WhatsApp não marca nada sozinho: o sistema pergunta.
+  // Abrir o WhatsApp não marca nada sozinho: o sistema pergunta, em destaque.
   const [aba] = await Promise.all([context.waitForEvent("page"), whatsapp.click()]);
   await aba.close();
-  await joao.getByRole("button", { name: "Sim, marcar como enviada" }).click();
-  await expect(page.getByText("Marcado como enviado.")).toBeVisible();
+  await expect(joao.getByText("Você enviou a mensagem?")).toBeVisible();
+  await joao.getByRole("button", { name: "Sim, enviei" }).click();
+  await expect(page.getByText("Marcado: Enviada.")).toBeVisible();
+  await expect(joao.getByRole("button", { name: "Enviada" })).toHaveAttribute("aria-pressed", "true");
   await expect(joao.getByRole("link", { name: "Abrir conversa" })).toBeVisible();
 
-  // Não contatar bloqueia o envio.
-  const corte = page.getByRole("article", { name: "Corte Fino" });
-  await corte.getByLabel("Andamento do contato").selectOption("nao_contatar");
-  await expect(corte.getByText("Pediu para não receber mensagens")).toBeVisible();
-  await expect(corte.getByRole("link", { name: /WhatsApp|Abrir conversa/ })).toHaveCount(0);
-  await expect(corte.getByRole("button", { name: "Copiar" })).toHaveCount(0);
+  // Andamento: tocar na etapa marcada desmarca; as três etapas são exclusivas.
+  const studio = page.getByRole("article", { name: "Studio Barba" });
+  await studio.getByRole("button", { name: "Respondeu" }).click();
+  await expect(studio.getByRole("button", { name: "Respondeu" })).toHaveAttribute("aria-pressed", "true");
+  await studio.getByRole("button", { name: "Cliente" }).click();
+  await expect(studio.getByRole("button", { name: "Respondeu" })).toHaveAttribute("aria-pressed", "false");
+  await studio.getByRole("button", { name: "Cliente" }).click();
+  await expect(page.getByText("Andamento desmarcado.")).toBeVisible();
+  await expect(studio.getByRole("button", { name: "Cliente" })).toHaveAttribute("aria-pressed", "false");
 
-  // Quem você acabou de marcar continua à vista; numa nova busca, quem já foi chamado some.
+  // Excluir pede confirmação; Cancelar não exclui.
+  const corte = page.getByRole("article", { name: "Corte Fino" });
+  await corte.getByRole("button", { name: "Excluir Corte Fino" }).click();
+  const dialogo = page.getByRole("dialog", { name: "Excluir Corte Fino?" });
+  await expect(dialogo).toBeVisible();
+  await dialogo.getByRole("button", { name: "Cancelar" }).click();
+  await expect(dialogo).toBeHidden();
+  await expect(corte).toBeVisible();
+  await corte.getByRole("button", { name: "Excluir Corte Fino" }).click();
+  await page.keyboard.press("Escape"); // Esc também fecha
+  await expect(dialogo).toBeHidden();
+  await corte.getByRole("button", { name: "Excluir Corte Fino" }).click();
+  await dialogo.getByRole("button", { name: "Excluir", exact: true }).click();
+  await expect(page.getByText("Corte Fino foi excluída.")).toBeVisible();
+  await expect(corte).toHaveCount(0);
+
+  // Quem você acabou de marcar continua à vista; numa nova busca, quem já foi chamado some e quem foi excluído não volta.
   await expect(joao).toBeVisible();
   await page.getByLabel(/Mostrar também quem já tem site/).uncheck();
   await page.getByRole("button", { name: "Buscar empresas" }).click();
   await expect(page.getByRole("heading", { name: "1 empresa para chamar em Campinas" })).toBeVisible();
-  await expect(page.getByText(/2 que você já chamou \(ocultas\)/)).toBeVisible();
+  await expect(page.getByText(/1 que você já chamou \(oculta\) · 1 que você excluiu \(ignorada\)/)).toBeVisible();
   await expect(joao).toHaveCount(0);
-  await page.getByLabel(/Mostrar quem já chamei \(2\)/).check();
-  await expect(joao.getByLabel("Andamento do contato")).toHaveValue("enviado");
+  await page.getByLabel(/Mostrar quem já chamei \(1\)/).check();
+  await expect(joao.getByRole("button", { name: "Enviada" })).toHaveAttribute("aria-pressed", "true");
+  await expect(corte).toHaveCount(0);
   await page.getByLabel(/Mostrar quem já chamei/).uncheck();
 
   // Chamado em outro aparelho: ao voltar para esta tela, a empresa sai da lista.
   const outroAparelho = await context.newPage();
   await outroAparelho.goto("/contatos");
-  await outroAparelho.getByRole("article", { name: "Navalha de Ouro" }).getByLabel("Andamento do contato").selectOption("respondeu");
-  await expect(outroAparelho.getByText(/Andamento: Respondeu/)).toBeVisible();
+  await outroAparelho.getByRole("article", { name: "Navalha de Ouro" }).getByRole("button", { name: "Respondeu" }).click();
+  await expect(outroAparelho.getByText("Marcado: Respondeu.")).toBeVisible();
   await outroAparelho.close();
   await page.bringToFront();
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -88,14 +110,14 @@ test("configura a mensagem, busca, envia pelo WhatsApp e acompanha o contato", a
 
   // Contatos
   await page.getByRole("link", { name: "Contatos", exact: true }).first().click();
-  await expect(page.getByText(/4 empresas salvas/)).toBeVisible();
-  await page.getByRole("link", { name: /^Mensagem enviada/ }).click();
+  await expect(page.getByText(/3 empresas salvas/)).toBeVisible(); // a excluída não conta
+  await page.getByRole("link", { name: /^Enviadas/ }).click();
   await expect(page.getByRole("article")).toHaveCount(1);
-  await expect(page.getByRole("article", { name: "Barbearia do João" }).getByText(/Contatado em/)).toBeVisible();
+  await expect(page.getByRole("article", { name: "Barbearia do João" }).getByText(/Contatada em/)).toBeVisible();
   await page.getByRole("link", { name: /^Todos/ }).click();
-  await page.getByRole("article", { name: "Navalha de Ouro" }).getByLabel("Andamento do contato").selectOption("novo");
-  await expect(page.getByText(/Andamento: Novo/)).toBeVisible();
-  await page.getByRole("link", { name: /^Mensagem enviada/ }).click();
+  await page.getByRole("article", { name: "Navalha de Ouro" }).getByRole("button", { name: "Respondeu" }).click();
+  await expect(page.getByText("Andamento desmarcado.")).toBeVisible();
+  await page.getByRole("link", { name: /^Enviadas/ }).click();
   await expect(page.getByRole("article")).toHaveCount(1);
 
   const obs = page.getByRole("article", { name: "Barbearia do João" }).getByLabel("Observação");
@@ -122,12 +144,13 @@ test("importa uma lista colada e já deixa pronta para chamar", async ({ page })
     [
       "nome;telefone;cidade;uf;site;categoria;endereco;fonte",
       "Barbearia do João;(19) 98000-0001;Campinas;SP;;Barbearia;;",
+      "Corte Fino;19 98000-0002;Campinas;SP;;Barbearia;;",
       "Pet Feliz;(19) 97777-1234;campinas;sp;instagram.com/petfeliz;Pet shop;Rua C, 3;https://exemplo.test/pet",
       "Loja Fantasma;(19) 96666-0000;Cidade Inventada;SP;;;;",
     ].join("\n"),
   );
   await page.getByRole("button", { name: "Ver prévia" }).click();
-  await expect(page.getByText("1 nova · 1 já chamada · 1 com erro (ignorada)")).toBeVisible();
+  await expect(page.getByText("1 nova · 1 já chamada · 1 que você excluiu (ignorada) · 1 com erro (ignorada)")).toBeVisible();
   await expect(page.getByText(/Cidade “Cidade Inventada” não encontrada em SP/)).toBeVisible();
   await page.getByRole("button", { name: "Importar 2 empresas" }).click();
 

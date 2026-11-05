@@ -27,6 +27,8 @@ test("no celular, o andamento é o mesmo e as telas cabem na largura", async ({ 
 
   await barraInferior.getByRole("link", { name: "Contatos", exact: true }).click();
   const joao = page.getByRole("article", { name: "Barbearia do João" });
-  await expect(joao.getByLabel("Andamento do contato")).toHaveValue("enviado");
+  await expect(joao.getByRole("button", { name: "Enviada" })).toHaveAttribute("aria-pressed", "true");
+  // As três etapas cabem lado a lado no celular, com a lixeira à vista.
+  await expect(joao.getByRole("button", { name: "Excluir Barbearia do João" })).toBeVisible();
   await expect(joao.getByLabel("Observação")).toHaveValue("Pediu para chamar sexta");
 });

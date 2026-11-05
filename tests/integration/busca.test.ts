@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { lerConfig, salvarConfig } from "@/server/config";
-import { atualizarContato, contarPorStatus, listarContatos, salvarEmpresas } from "@/server/contatos";
+import { atualizarContato, contarPorStatus, excluirContato, listarContatos, salvarEmpresas } from "@/server/contatos";
 import { encerrarConexoes, sql } from "@/server/db";
 import { recarregarEnv } from "@/server/env";
 import { executarBusca } from "@/server/busca";
@@ -103,11 +103,29 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("busca e contatos (Postgres)", (
   it("filtra contatos por andamento, nome e telefone", async () => {
     simularGoogle();
     const { contatos } = await executarBusca(busca());
-    await atualizarContato(contatos[1].id, { status: "nao_contatar" });
-    expect(await listarContatos({ status: "nao_contatar" })).toHaveLength(1);
+    await atualizarContato(contatos[1].id, { status: "fechado" });
+    expect(await listarContatos({ status: "fechado" })).toHaveLength(1);
     expect((await listarContatos({ busca: "barbearia 3" }))[0]?.nome).toBe("Barbearia 3");
     expect((await listarContatos({ busca: "3232-1010" }))[0]?.nome).toBe("Barbearia 6");
-    expect((await contarPorStatus()).nao_contatar).toBe(1);
+    expect((await contarPorStatus()).fechado).toBe(1);
+  });
+
+  it("empresa excluída some da lista e não volta em buscas nem importações", async () => {
+    simularGoogle();
+    const { contatos } = await executarBusca(busca());
+    const alvo = contatos.find((c) => c.nome === "Barbearia 2")!;
+    expect(await excluirContato(alvo.id)).toBe(true);
+    expect(await excluirContato(alvo.id)).toBe(false); // já excluída
+    expect((await listarContatos()).map((c) => c.id)).not.toContain(alvo.id);
+    expect((await contarPorStatus()).total).toBe(3);
+
+    const denovo = await executarBusca(busca());
+    expect(denovo.excluidas).toBe(1);
+    expect(denovo.contatos.map((c) => c.id)).not.toContain(alvo.id);
+
+    const previa = await preverImportacao(`nome;telefone;cidade;uf\nBarbearia 2 (outra fonte);(19) 98000-0002;Campinas;SP`);
+    expect(previa).toMatchObject({ excluidas: 1, novas: 0 });
+    await expect(importarLista(`nome;telefone;cidade;uf\nBarbearia 2 (outra fonte);(19) 98000-0002;Campinas;SP`)).rejects.toThrow(/Nenhuma linha válida/);
   });
 
   it("guarda a configuração da mensagem com valores padrão", async () => {

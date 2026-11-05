@@ -112,6 +112,6 @@ export async function executarBusca(input: BuscaInput): Promise<BuscaResultado> 
     else if (validas.length < input.quantidade) validas.push(empresa);
   }
 
-  const { contatos, novas } = await salvarEmpresas(validas, nomeNicho);
-  return { contatos: contatos.sort(ordenar), fonte, consultas, recebidas: vistas.size, foraDaCidade, fechadas, novas };
+  const { contatos, novas, excluidas } = await salvarEmpresas(validas, nomeNicho);
+  return { contatos: contatos.sort(ordenar), fonte, consultas, recebidas: vistas.size, foraDaCidade, fechadas, novas, excluidas };
 }

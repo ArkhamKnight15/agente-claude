@@ -48,7 +48,7 @@ export function ListaContatos({ contatos, contagem, config, status, busca }: Pro
 
   const filtros: Array<{ valor?: ContatoStatus; rotulo: string; n: number }> = [
     { rotulo: "Todos", n: contagem.total },
-    ...ORDEM_STATUS.map((s) => ({ valor: s, rotulo: STATUS[s].rotulo, n: contagem[s] })),
+    ...ORDEM_STATUS.map((s) => ({ valor: s, rotulo: STATUS[s].plural, n: contagem[s] })),
   ];
 
   return (
@@ -89,7 +89,7 @@ export function ListaContatos({ contatos, contagem, config, status, busca }: Pro
         <ul className="grid gap-3 lg:grid-cols-2">
           {contatos.map((c) => (
             <li key={`${c.id}:${c.atualizadoEm}`}>
-              <CartaoContato contato={c} config={config} comObservacao />
+              <CartaoContato contato={c} config={config} comObservacao aoExcluir={() => router.refresh()} />
             </li>
           ))}
         </ul>

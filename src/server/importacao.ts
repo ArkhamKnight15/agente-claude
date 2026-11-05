@@ -11,7 +11,7 @@ import { ErroDeUsuario } from "./erros";
 
 /** Importação de listas coladas (ex.: pesquisa feita pelo Claude ou uma planilha). */
 
-export type SituacaoImportacao = "nova" | "existente" | "ja_chamada" | "erro";
+export type SituacaoImportacao = "nova" | "existente" | "ja_chamada" | "excluida" | "erro";
 
 export interface ItemPrevia {
   linha: number;
@@ -33,6 +33,7 @@ export interface PreviaImportacao {
   novas: number;
   existentes: number;
   jaChamadas: number;
+  excluidas: number;
   erros: number;
   excedeu: boolean;
 }
@@ -101,8 +102,9 @@ async function analisar(texto: string): Promise<{ previa: PreviaImportacao; vali
     candidatas.map((e) => e.id),
     candidatas.flatMap((e) => (e.telefone ? [e.telefone] : [])),
   );
-  const porId = new Map<string, Contato>(existentes.map((c) => [c.id, c]));
-  const porTelefone = new Map<string, Contato>(existentes.filter((c) => c.telefone).map((c) => [c.telefone as string, c]));
+  type Existente = (typeof existentes)[number];
+  const porId = new Map<string, Existente>(existentes.map((c) => [c.id, c]));
+  const porTelefone = new Map<string, Existente>(existentes.filter((c) => c.telefone).map((c) => [c.telefone as string, c]));
 
   const vistas = new Set<string>();
   const validas: Array<Empresa & { categoria: string | null }> = [];
@@ -116,6 +118,10 @@ async function analisar(texto: string): Promise<{ previa: PreviaImportacao; vali
     }
     vistas.add(chave);
     const existente = porId.get(empresa.id) ?? (empresa.telefone ? porTelefone.get(empresa.telefone) : undefined);
+    if (existente?.excluido) {
+      item.situacao = "excluida"; // você excluiu: não volta
+      continue;
+    }
     if (existente) {
       item.situacao = existente.status === "novo" ? "existente" : "ja_chamada";
       item.statusAtual = existente.status;
@@ -126,7 +132,7 @@ async function analisar(texto: string): Promise<{ previa: PreviaImportacao; vali
   const itens = lidas.map((l) => l.item);
   const contar = (s: SituacaoImportacao) => itens.filter((i) => i.situacao === s).length;
   return {
-    previa: { itens, novas: contar("nova"), existentes: contar("existente"), jaChamadas: contar("ja_chamada"), erros: contar("erro"), excedeu },
+    previa: { itens, novas: contar("nova"), existentes: contar("existente"), jaChamadas: contar("ja_chamada"), excluidas: contar("excluida"), erros: contar("erro"), excedeu },
     validas,
   };
 }

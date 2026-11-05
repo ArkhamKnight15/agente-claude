@@ -23,6 +23,9 @@
   --ring: #3446d4;
   --whatsapp: #0f7a45;
   --whatsapp-hover: #0c663a;
+  /* Botão de exclusão: texto branco com contraste AA nos dois temas. */
+  --perigo-solido: #b42318;
+  --perigo-solido-hover: #93190f;
 
   --success: #136c32;
   --success-soft: #e6f4ea;

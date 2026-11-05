@@ -8,7 +8,7 @@ import type { BuscaResultado, ConfigMensagem, Contato, Resultado } from "@/types
 import { entrar, exigirLogin, sair } from "./auth";
 import { executarBusca } from "./busca";
 import { salvarConfig } from "./config";
-import { atualizarContato, contatosPorIds } from "./contatos";
+import { atualizarContato, contatosPorIds, excluirContato } from "./contatos";
 import { ErroDeUsuario, mensagemDeErro } from "./erros";
 import { importarLista, preverImportacao, type PreviaImportacao } from "./importacao";
 
@@ -76,10 +76,20 @@ export async function atualizarContatoAcao(id: string, mudancas: z.input<typeof 
   });
 }
 
-export async function contatosAtuaisAcao(ids: string[]): Promise<Resultado<Contato[]>> {
+export async function contatosAtuaisAcao(ids: string[]): Promise<Resultado<{ contatos: Contato[]; excluidos: string[] }>> {
   return executar(async () => {
     await exigirLogin();
     return contatosPorIds(z.array(z.string().min(3).max(200)).max(200).parse(ids));
+  });
+}
+
+export async function excluirContatoAcao(id: string): Promise<Resultado<{ id: string }>> {
+  return executar(async () => {
+    await exigirLogin();
+    const alvo = z.string().min(3).max(200).parse(id);
+    if (!(await excluirContato(alvo))) throw new ErroDeUsuario("Esta empresa já tinha sido excluída.");
+    revalidatePath("/contatos");
+    return { id: alvo };
   });
 }
 
