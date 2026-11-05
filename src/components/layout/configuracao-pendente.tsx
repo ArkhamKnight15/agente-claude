@@ -2,7 +2,8 @@ import { Settings } from "lucide-react";
 import { Marca } from "./navegacao";
 
 const AJUDA: Record<string, string> = {
-  DATABASE_URL: "Na Vercel: Storage → Neon → Connect Project. A variável é criada sozinha.",
+  DATABASE_URL:
+    "Na Vercel: Storage → conecte o banco Neon a este projeto, marcando Production, Preview e Development. Se o banco já aparece conectado, confira em Settings → Environment Variables se DATABASE_URL vale para Production.",
   APP_PASSWORD: "Settings → Environment Variables → APP_PASSWORD com a senha de acesso (mínimo 8 caracteres).",
 };
 

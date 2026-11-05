@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { municipioOficial, municipiosDaUf } from "@/data/municipios";
+import { urlDoBanco } from "@/server/env";
 import { gerarCsv } from "@/lib/csv";
 import { CONFIG_PADRAO, camposFaltando, montarMensagem, MODELO_PADRAO } from "@/lib/mensagem";
 import { iguais, sessaoValida, tokenDaSenha } from "@/lib/sessao";
@@ -89,5 +90,14 @@ describe("sessão", () => {
     expect(await sessaoValida(token, "senha-2")).toBe(false);
     expect(await sessaoValida(undefined, "senha-1")).toBe(false);
     expect(iguais("abc", "abd")).toBe(false);
+  });
+});
+
+describe("banco", () => {
+  it("aceita os nomes que a integração Neon/Vercel cria", () => {
+    expect(urlDoBanco({ DATABASE_URL: "postgres://a", POSTGRES_URL: "postgres://b" })).toBe("postgres://a");
+    expect(urlDoBanco({ POSTGRES_URL: "postgres://b" })).toBe("postgres://b");
+    expect(urlDoBanco({ STORAGE_DATABASE_URL: "postgres://c" })).toBe("postgres://c");
+    expect(urlDoBanco({ DATABASE_URL: " ", OUTRA: "x" })).toBeUndefined();
   });
 });

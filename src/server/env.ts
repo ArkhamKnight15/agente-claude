@@ -27,6 +27,16 @@ const schema = z.object({
 
 export type Env = z.infer<typeof schema>;
 
+/**
+ * A integração Neon/Vercel pode criar a conexão com outros nomes (POSTGRES_URL…) ou com um
+ * prefixo personalizado (ex.: STORAGE_DATABASE_URL). Aceita qualquer um deles.
+ */
+export function urlDoBanco(env: Record<string, string | undefined>): string | undefined {
+  const nomes = ["DATABASE_URL", "POSTGRES_URL", "DATABASE_URL_UNPOOLED", "POSTGRES_URL_NON_POOLING"];
+  const nome = nomes.find((n) => env[n]?.trim()) ?? Object.keys(env).sort().find((k) => /_(DATABASE_URL|POSTGRES_URL)$/.test(k) && env[k]?.trim());
+  return nome ? env[nome] : undefined;
+}
+
 let cache: Env | null = null;
 
 export class ConfiguracaoPendenteError extends Error {
@@ -37,7 +47,7 @@ export class ConfiguracaoPendenteError extends Error {
 
 export function getEnv(): Env {
   if (cache) return cache;
-  const parsed = schema.safeParse(process.env);
+  const parsed = schema.safeParse({ ...process.env, DATABASE_URL: urlDoBanco(process.env) });
   if (!parsed.success) {
     throw new ConfiguracaoPendenteError(parsed.error.issues.map((i) => `${i.path.join(".")} ${i.message}`));
   }
