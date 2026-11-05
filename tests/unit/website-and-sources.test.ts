@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { assessWebsiteQuality, decideWebsiteStatus, extractSignals, type CandidateEvaluation } from "@/lib/agent/website-analysis";
 import { rootDisallowed } from "@/server/agent/robots";
 import { __test as httpTest } from "@/server/integrations/http";
-import { mapGooglePlace } from "@/server/integrations/sources/google-places";
+import { describePlacesError, mapGooglePlace } from "@/server/integrations/sources/google-places";
 import { buildOverpassQuery, mapOverpassElement, queryOverpass } from "@/server/integrations/sources/openstreetmap";
 import { classifyUrl, normalizeWebsiteUrl, registrableDomain } from "@/lib/url";
 
@@ -127,6 +127,21 @@ describe("fontes de empresas", () => {
       userRatingCount: 51,
     });
     expect(raw).toMatchObject({ provider: "GOOGLE_PLACES", externalId: "ChIJ123", city: "Campinas", state: "SP", neighborhood: "Centro", website: null, hasWebsiteField: true, reviewCount: 51 });
+  });
+
+  it("explica o erro do Google Places com o motivo e o projeto da chave", () => {
+    const blocked = describePlacesError(403, {
+      error: {
+        code: 403,
+        message: "The caller does not have permission",
+        status: "PERMISSION_DENIED",
+        details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "API_KEY_SERVICE_BLOCKED", metadata: { consumer: "projects/123456789", service: "places.googleapis.com" } }],
+      },
+    });
+    expect(blocked).toContain("Motivo: API_KEY_SERVICE_BLOCKED");
+    expect(blocked).toContain("não incluem a Places API (New)");
+    expect(blocked).toContain("nº 123456789");
+    expect(describePlacesError(403, null)).toMatch(/HTTP 403.*Places API \(New\) está ativada/);
   });
 
   it("mapeia elementos do OpenStreetMap e escapa a consulta Overpass", () => {

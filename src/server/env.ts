@@ -5,11 +5,12 @@ import { z } from "zod";
  * é exposto ao navegador (não usamos o prefixo NEXT_PUBLIC_).
  */
 
+// Remove também aspas em volta: no painel da Vercel o valor é usado literalmente.
 const optional = z
   .string()
   .trim()
   .optional()
-  .transform((v) => (v ? v : undefined));
+  .transform((v) => v?.replace(/^(["'])(.*)\1$/, "$2").trim() || undefined);
 
 const bool = (fallback: boolean) =>
   z

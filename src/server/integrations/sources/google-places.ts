@@ -54,7 +54,39 @@ export interface GooglePlace {
 interface SearchTextResponse {
   places?: GooglePlace[];
   nextPageToken?: string;
-  error?: { code: number; message: string; status: string };
+  error?: {
+    code: number;
+    message: string;
+    status: string;
+    details?: Array<{ "@type"?: string; reason?: string; metadata?: Record<string, string> }>;
+  };
+}
+
+/** Motivos do Google (ErrorInfo.reason) traduzidos em uma ação concreta. */
+const REASON_HINTS: Record<string, string> = {
+  SERVICE_DISABLED: "A Places API (New) não está ativada no projeto da chave.",
+  ACCESS_NOT_CONFIGURED: "A Places API (New) não está ativada no projeto da chave.",
+  BILLING_DISABLED: "O projeto da chave está sem faturamento ativo.",
+  API_KEY_SERVICE_BLOCKED: "As restrições de API da chave não incluem a Places API (New).",
+  API_KEY_HTTP_REFERRER_BLOCKED: "A chave tem restrição de sites — use “Nenhuma” em Restrições de aplicativo.",
+  API_KEY_IP_ADDRESS_BLOCKED: "A chave tem restrição de IP — a Vercel não tem IP fixo; use “Nenhuma”.",
+  API_KEY_ANDROID_APP_BLOCKED: "A chave está restrita a apps Android — use “Nenhuma” em Restrições de aplicativo.",
+  API_KEY_IOS_APP_BLOCKED: "A chave está restrita a apps iOS — use “Nenhuma” em Restrições de aplicativo.",
+  API_KEY_INVALID: "A chave não é válida — copie novamente, sem aspas nem espaços.",
+};
+
+/** Mensagem de erro com o motivo informado pelo Google e o número do projeto dono da chave. */
+export function describePlacesError(status: number, data: SearchTextResponse | null): string {
+  const info = data?.error?.details?.find((d) => d.reason);
+  const reason = info?.reason;
+  const project = info?.metadata?.consumer?.replace(/^projects\//, "") ?? info?.metadata?.containerInfo;
+  const parts = [`Google Places respondeu com erro: ${data?.error?.message ?? `HTTP ${status}`}`];
+  if (reason) parts.push(`Motivo: ${reason}. ${REASON_HINTS[reason] ?? ""}`.trim());
+  else if (status === 403) {
+    parts.push("Verifique se a chave é válida, se a Places API (New) está ativada e se o faturamento está habilitado.");
+  }
+  if (project) parts.push(`Projeto da chave: nº ${project} — confira se é o mesmo número no painel do Google Cloud.`);
+  return parts.join(" ");
 }
 
 function component(place: GooglePlace, type: string, short = false): string | null {
@@ -91,12 +123,7 @@ export function mapGooglePlace(place: GooglePlace): RawBusiness {
 }
 
 function raiseForError(status: number, data: SearchTextResponse | null): never {
-  const message = data?.error?.message ?? `HTTP ${status}`;
-  const hint =
-    status === 403
-      ? " Verifique se a chave é válida, se a Places API (New) está ativada e se o faturamento está habilitado."
-      : "";
-  throw new IntegrationError("Google Places", `Google Places respondeu com erro: ${message}.${hint}`, isRetryableStatus(status), data?.error?.status);
+  throw new IntegrationError("Google Places", describePlacesError(status, data), isRetryableStatus(status), data?.error?.status);
 }
 
 export const googlePlacesSource: BusinessSource = {
