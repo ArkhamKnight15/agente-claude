@@ -98,12 +98,17 @@ export function ListaContatos({ contatos, contagem, config, status, busca }: Pro
           icone={<Users />}
           titulo="Nenhum contato ainda"
           acao={
-            <Link href="/" className="text-14 font-medium text-accent hover:underline">
-              Fazer a primeira busca
-            </Link>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link href="/" className="text-14 font-medium text-accent hover:underline">
+                Fazer a primeira busca
+              </Link>
+              <Link href="/contatos/importar" className="text-14 font-medium text-accent hover:underline">
+                Importar uma lista
+              </Link>
+            </div>
           }
         >
-          As empresas que você encontrar na busca aparecem aqui, com o andamento de cada uma.
+          As empresas que você encontrar na busca ou importar aparecem aqui, com o andamento de cada uma.
         </Vazio>
       ) : (
         <Vazio icone={<Search />} titulo="Nada encontrado">

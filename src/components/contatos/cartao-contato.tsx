@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, ExternalLink, Globe, GlobeLock, MapPin, MessageCircle, Phone, Search, Star, AtSign } from "lucide-react";
+import { AtSign, Check, Copy, ExternalLink, Globe, GlobeLock, Link2, MapPin, MessageCircle, Phone, Search, Star } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { Botao, LinkBotao } from "@/components/ui/botao";
 import { AreaTexto } from "@/components/ui/campo";
@@ -175,6 +175,11 @@ export function CartaoContato({ contato: inicial, config, comObservacao, aoAtual
         {contato.mapsUrl ? (
           <LinkBotao variante="fantasma" href={contato.mapsUrl} target="_blank" rel="noopener noreferrer" icone={<MapPin aria-hidden />}>
             Mapa
+          </LinkBotao>
+        ) : null}
+        {contato.fonte === "importado" && contato.origemUrl ? (
+          <LinkBotao variante="fantasma" href={contato.origemUrl} target="_blank" rel="noopener noreferrer" icone={<Link2 aria-hidden />} title="Página onde a empresa foi encontrada">
+            Fonte
           </LinkBotao>
         ) : null}
         {contato.siteUrl ? (

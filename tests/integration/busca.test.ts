@@ -4,6 +4,7 @@ import { atualizarContato, contarPorStatus, listarContatos, salvarEmpresas } fro
 import { encerrarConexoes, sql } from "@/server/db";
 import { recarregarEnv } from "@/server/env";
 import { executarBusca } from "@/server/busca";
+import { importarLista, preverImportacao } from "@/server/importacao";
 import { CONFIG_PADRAO } from "@/lib/mensagem";
 import type { BuscaInput } from "@/types";
 
@@ -113,5 +114,37 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("busca e contatos (Postgres)", (
     expect(await lerConfig()).toEqual(CONFIG_PADRAO);
     await salvarConfig({ ...CONFIG_PADRAO, seuNome: "Ana", preco: 650 });
     expect(await lerConfig()).toMatchObject({ seuNome: "Ana", preco: 650, modelo: CONFIG_PADRAO.modelo });
+  });
+
+  it("importa uma lista colada: prévia, sem duplicar e sem perder o andamento", async () => {
+    simularGoogle();
+    const { contatos } = await executarBusca(busca());
+    await atualizarContato(contatos[0].id, { status: "enviado" }); // Barbearia 1, (19) 98000-0001
+
+    const lista = `nome;telefone;cidade;uf;site;categoria;endereco;fonte
+Barbearia 1 (outro cadastro);(19) 98000-0001;Campinas;SP;;Barbearia;;
+Barbearia Nova;19 97777-6666;campinas;sp;instagram.com/nova;Barbearia;Rua B, 5;https://exemplo.test/nova
+Barbearia Nova repetida;19 97777-6666;Campinas;SP;;;;
+Sem Cidade;19 95555-4444;Cidade Inventada;SP;;;;
+Pet Sem Telefone;;Campinas;SP;;Pet shop;;`;
+
+    const previa = await preverImportacao(lista);
+    expect(previa).toMatchObject({ novas: 2, existentes: 0, jaChamadas: 1, erros: 2 });
+    expect(previa.itens.map((i) => i.situacao)).toEqual(["ja_chamada", "nova", "erro", "erro", "nova"]);
+    expect(previa.itens[0].statusAtual).toBe("enviado");
+    expect(previa.itens[3].erro).toMatch(/não encontrada em SP/);
+    expect(previa.itens[4].avisos).toContain("sem telefone");
+    expect((await contarPorStatus()).total).toBe(4); // a prévia não grava nada
+
+    const { contatos: importados } = await importarLista(lista);
+    expect(importados).toHaveLength(3);
+    const nova = importados.find((c) => c.nome === "Barbearia Nova")!;
+    expect(nova).toMatchObject({ fonte: "importado", cidade: "Campinas", uf: "SP", siteStatus: "so_perfil", telefone: "5519977776666", origemUrl: "https://exemplo.test/nova", nicho: "Barbearia" });
+    expect(importados.find((c) => c.telefone === "5519980000001")).toMatchObject({ id: contatos[0].id, status: "enviado" });
+
+    // Importar a mesma lista de novo não duplica.
+    await importarLista(lista);
+    expect((await contarPorStatus()).total).toBe(6);
+    await expect(preverImportacao("  ")).rejects.toThrow(/Cole a lista/);
   });
 });

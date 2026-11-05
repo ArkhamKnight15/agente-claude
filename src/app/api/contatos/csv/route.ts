@@ -7,11 +7,13 @@ import { listarContatos } from "@/server/contatos";
 
 export const dynamic = "force-dynamic";
 
+const FONTES = { google: "Google", osm: "OpenStreetMap", importado: "Lista importada" } as const;
+
 export async function GET() {
   if (!(await estaLogado())) return new Response("Não autorizado.", { status: 401 });
   const contatos = await listarContatos({}, 10_000);
   const csv = gerarCsv(
-    ["Empresa", "Telefone", "WhatsApp", "Cidade", "UF", "Categoria", "Site", "Endereço do site", "Andamento", "Contatado em", "Observação", "Mapa", "Fonte"],
+    ["Empresa", "Telefone", "WhatsApp", "Cidade", "UF", "Categoria", "Site", "Endereço do site", "Andamento", "Contatado em", "Observação", "Mapa", "Fonte", "Link da fonte"],
     contatos.map((c) => [
       c.nome,
       formatarTelefone(c.telefone),
@@ -25,7 +27,8 @@ export async function GET() {
       formatarData(c.contatadoEm),
       c.observacao,
       c.mapsUrl,
-      c.fonte === "google" ? "Google" : "OpenStreetMap",
+      FONTES[c.fonte],
+      c.origemUrl,
     ]),
   );
   const dia = new Date().toISOString().slice(0, 10);

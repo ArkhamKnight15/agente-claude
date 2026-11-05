@@ -21,6 +21,7 @@ interface Linha {
   avaliacao: number | null;
   avaliacoes: number | null;
   fonte: Contato["fonte"];
+  origem_url: string | null;
   status: ContatoStatus;
   observacao: string | null;
   contatado_em: Date | null;
@@ -46,6 +47,7 @@ function paraContato(l: Linha): Contato {
     avaliacao: l.avaliacao,
     avaliacoes: l.avaliacoes,
     fonte: l.fonte,
+    origemUrl: l.origem_url,
     status: l.status,
     observacao: l.observacao,
     contatadoEm: l.contatado_em?.toISOString() ?? null,
@@ -76,18 +78,18 @@ export async function salvarEmpresas(empresas: Empresa[], nicho: string): Promis
         [linha] = await q<Linha>(
           `UPDATE prospecta_contatos SET nome = $2, categoria = $3, endereco = $4, telefone = COALESCE($5, telefone),
              telefone_tipo = CASE WHEN $5::text IS NULL THEN telefone_tipo ELSE $6 END, site_status = $7, site_url = $8,
-             site_rotulo = $9, maps_url = $10, avaliacao = $11, avaliacoes = $12
+             site_rotulo = $9, maps_url = $10, avaliacao = $11, avaliacoes = $12, origem_url = COALESCE($13, origem_url)
            WHERE id = $1 RETURNING *`,
-          [e.id, e.nome, e.categoria, e.endereco, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes],
+          [e.id, e.nome, e.categoria, e.endereco, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.origemUrl],
         );
       } else if (mesmoTelefone) {
         linha = mesmoTelefone; // mesma empresa vinda de outra fonte ou com outro cadastro
       } else {
         [linha] = await q<Linha>(
           `INSERT INTO prospecta_contatos (id, nome, categoria, nicho, endereco, cidade, uf, telefone, telefone_tipo,
-             site_status, site_url, site_rotulo, maps_url, avaliacao, avaliacoes, fonte)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
-          [e.id, e.nome, e.categoria, nicho, e.endereco, e.cidade, e.uf, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.fonte],
+             site_status, site_url, site_rotulo, maps_url, avaliacao, avaliacoes, fonte, origem_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+          [e.id, e.nome, e.categoria, nicho, e.endereco, e.cidade, e.uf, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.fonte, e.origemUrl],
         );
         novas++;
         porId.set(linha.id, linha);
@@ -130,6 +132,12 @@ export async function listarContatos(filtro: FiltroContatos = {}, limite = 300):
     parametros,
   );
   return linhas.map(paraContato);
+}
+
+/** Contatos já salvos com algum destes ids ou telefones (para a prévia da importação). */
+export async function contatosPorIdsOuTelefones(ids: string[], telefones: string[]): Promise<Contato[]> {
+  if (ids.length === 0 && telefones.length === 0) return [];
+  return (await sql<Linha>("SELECT * FROM prospecta_contatos WHERE id = ANY($1) OR telefone = ANY($2)", [ids, telefones])).map(paraContato);
 }
 
 /** Estado atual de contatos já exibidos (para refletir o que foi feito em outro aparelho). */

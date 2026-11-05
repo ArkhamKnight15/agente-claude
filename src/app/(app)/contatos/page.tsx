@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { Download, FileUp } from "lucide-react";
 import type { Metadata } from "next";
 import { ListaContatos } from "@/components/contatos/lista-contatos";
 import { Cabecalho } from "@/components/layout/cabecalho";
@@ -23,11 +23,16 @@ export default async function ContatosPage({ searchParams }: { searchParams: Pro
         titulo="Contatos"
         descricao={`${plural(contagem.total, "empresa salva", "empresas salvas")} · o andamento é o mesmo no computador e no celular.`}
         acoes={
-          contagem.total ? (
-            <LinkBotao href="/api/contatos/csv" variante="secundario" icone={<Download aria-hidden />} download>
-              Exportar planilha
+          <>
+            <LinkBotao href="/contatos/importar" variante="secundario" icone={<FileUp aria-hidden />}>
+              Importar empresas
             </LinkBotao>
-          ) : null
+            {contagem.total ? (
+              <LinkBotao href="/api/contatos/csv" variante="secundario" icone={<Download aria-hidden />} download>
+                Exportar planilha
+              </LinkBotao>
+            ) : null}
+          </>
         }
       />
       <ListaContatos contatos={contatos} contagem={contagem} config={config} status={status} busca={busca} />

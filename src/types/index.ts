@@ -1,5 +1,7 @@
-export type Fonte = "google" | "osm";
-export type FonteEscolhida = "auto" | Fonte;
+/** De onde a empresa veio: busca automática ou lista importada (colada no app). */
+export type Fonte = "google" | "osm" | "importado";
+export type FonteBusca = Exclude<Fonte, "importado">;
+export type FonteEscolhida = "auto" | FonteBusca;
 
 /** O que a fonte informa sobre o site da empresa (não é uma verificação completa). */
 export type SiteStatus = "sem_site" | "so_perfil" | "com_site";
@@ -25,6 +27,7 @@ export interface Empresa {
   avaliacao: number | null;
   avaliacoes: number | null;
   fonte: Fonte;
+  origemUrl: string | null; // página onde o dado foi encontrado (listas importadas, OpenStreetMap)
 }
 
 /** Empresa salva, com o andamento do contato (compartilhado entre aparelhos). */
@@ -56,7 +59,7 @@ export interface BuscaInput {
 
 export interface BuscaResultado {
   contatos: Contato[];
-  fonte: Fonte;
+  fonte: FonteBusca;
   consultas: number;
   recebidas: number;
   foraDaCidade: number;

@@ -21,6 +21,10 @@ test("no celular, o andamento é o mesmo e as telas cabem na largura", async ({ 
     expect(sobra, `rolagem horizontal em ${aba}`).toBeLessThanOrEqual(0);
   }
 
+  await page.goto("/contatos/importar");
+  await expect(page.getByRole("heading", { name: "Importar empresas", level: 1 })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+
   await barraInferior.getByRole("link", { name: "Contatos", exact: true }).click();
   const joao = page.getByRole("article", { name: "Barbearia do João" });
   await expect(joao.getByLabel("Andamento do contato")).toHaveValue("enviado");

@@ -114,6 +114,7 @@ export function converterLugar(lugar: LugarGoogle, cidadePadrao: string, uf: str
     avaliacao: lugar.rating ?? null,
     avaliacoes: lugar.userRatingCount ?? null,
     fonte: "google",
+    origemUrl: null,
     cidadeDaFonte,
     fechada: lugar.businessStatus === "CLOSED_PERMANENTLY" || lugar.businessStatus === "CLOSED_TEMPORARILY",
   };

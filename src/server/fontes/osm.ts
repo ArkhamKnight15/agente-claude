@@ -70,6 +70,7 @@ export function converterElemento(el: ElementoOsm, cidade: string, uf: string): 
     avaliacao: null,
     avaliacoes: null,
     fonte: "osm",
+    origemUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`,
     cidadeDaFonte: tags["addr:city"] ?? null,
     fechada: Boolean(tags["disused:shop"] || tags["disused:amenity"]),
   };

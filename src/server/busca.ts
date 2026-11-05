@@ -2,7 +2,7 @@ import "server-only";
 import { municipioOficial, ufValida } from "@/data/municipios";
 import { NICHO_OUTRO, nichoPorChave } from "@/data/nichos";
 import { normalizarTexto } from "@/lib/texto";
-import type { BuscaInput, BuscaResultado, Contato, Empresa, Fonte } from "@/types";
+import type { BuscaInput, BuscaResultado, Contato, Empresa, FonteBusca } from "@/types";
 import { salvarEmpresas } from "./contatos";
 import { getEnv } from "./env";
 import { ErroDeUsuario } from "./erros";
@@ -89,7 +89,7 @@ export async function executarBusca(input: BuscaInput): Promise<BuscaResultado> 
     nomeNicho = nicho.nome;
   }
 
-  let fonte: Fonte;
+  let fonte: FonteBusca;
   if (input.fonte === "auto") fonte = googleDisponivel() ? "google" : "osm";
   else fonte = input.fonte;
   if (fonte === "google" && !googleDisponivel()) {

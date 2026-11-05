@@ -112,6 +112,33 @@ test("configura a mensagem, busca, envia pelo WhatsApp e acompanha o contato", a
   expect(download.suggestedFilename()).toMatch(/^contatos-\d{4}-\d{2}-\d{2}\.csv$/);
 });
 
+test("importa uma lista colada e já deixa pronta para chamar", async ({ page }) => {
+  await entrar(page);
+  await page.getByRole("link", { name: "Contatos", exact: true }).first().click();
+  await page.getByRole("link", { name: "Importar empresas" }).click();
+  await expect(page.getByRole("heading", { name: "Importar empresas", level: 1 })).toBeVisible();
+
+  await page.getByLabel("Cole a lista de empresas").fill(
+    [
+      "nome;telefone;cidade;uf;site;categoria;endereco;fonte",
+      "Barbearia do João;(19) 98000-0001;Campinas;SP;;Barbearia;;",
+      "Pet Feliz;(19) 97777-1234;campinas;sp;instagram.com/petfeliz;Pet shop;Rua C, 3;https://exemplo.test/pet",
+      "Loja Fantasma;(19) 96666-0000;Cidade Inventada;SP;;;;",
+    ].join("\n"),
+  );
+  await page.getByRole("button", { name: "Ver prévia" }).click();
+  await expect(page.getByText("1 nova · 1 já chamada · 1 com erro (ignorada)")).toBeVisible();
+  await expect(page.getByText(/Cidade “Cidade Inventada” não encontrada em SP/)).toBeVisible();
+  await page.getByRole("button", { name: "Importar 2 empresas" }).click();
+
+  await expect(page.getByText(/2 empresas importadas \(1 nova\)/)).toBeVisible();
+  const pet = page.getByRole("article", { name: "Pet Feliz" });
+  await expect(pet.getByText("Só Instagram")).toBeVisible();
+  await expect(pet.getByRole("link", { name: "Enviar no WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/5519977771234\?text=/);
+  await expect(pet.getByRole("link", { name: "Fonte" })).toHaveAttribute("href", "https://exemplo.test/pet");
+  await expect(page.getByRole("article", { name: "Barbearia do João" })).toHaveCount(0); // já chamada: não aparece para chamar de novo
+});
+
 test("rotas protegidas exigem a senha", async ({ request }) => {
   const csv = await request.get("/api/contatos/csv", { maxRedirects: 0 });
   expect(csv.status()).toBe(401);

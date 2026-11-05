@@ -21,6 +21,14 @@ aparelho. Quem pediu para **não ser contatado** fica com o envio bloqueado.
 “Sem site” significa que a fonte não informa site. Use **Conferir site** (abre a busca no Google)
 antes de afirmar isso para o cliente.
 
+## Importar uma lista
+
+Em **Contatos → Importar empresas**, cole uma lista (uma empresa por linha) e veja a prévia antes de salvar:
+novas, já salvas, já chamadas e linhas com erro. Aceita CSV com `;` ou `,`, planilha copiada (Excel,
+Google Planilhas) e tabela em Markdown. Colunas: `nome;telefone;cidade;uf;site;categoria;endereco;fonte`
+(com cabeçalho, em qualquer ordem). Obrigatórios: nome, cidade e UF. As empresas importadas seguem as
+mesmas regras da busca: sem duplicar pelo telefone, sem perder o andamento e com a mensagem pronta.
+
 ## Publicar na Vercel
 
 1. Importe este repositório na Vercel (*Add New → Project*). O Next.js é detectado sozinho.

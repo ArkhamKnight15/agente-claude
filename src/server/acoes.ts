@@ -10,6 +10,7 @@ import { executarBusca } from "./busca";
 import { salvarConfig } from "./config";
 import { atualizarContato, contatosPorIds } from "./contatos";
 import { ErroDeUsuario, mensagemDeErro } from "./erros";
+import { importarLista, preverImportacao, type PreviaImportacao } from "./importacao";
 
 async function executar<T>(fn: () => Promise<T>): Promise<Resultado<T>> {
   try {
@@ -79,6 +80,24 @@ export async function contatosAtuaisAcao(ids: string[]): Promise<Resultado<Conta
   return executar(async () => {
     await exigirLogin();
     return contatosPorIds(z.array(z.string().min(3).max(200)).max(200).parse(ids));
+  });
+}
+
+const listaSchema = z.string().max(200_000);
+
+export async function preverImportacaoAcao(texto: string): Promise<Resultado<PreviaImportacao>> {
+  return executar(async () => {
+    await exigirLogin();
+    return preverImportacao(listaSchema.parse(texto));
+  });
+}
+
+export async function importarAcao(texto: string): Promise<Resultado<{ previa: PreviaImportacao; contatos: Contato[] }>> {
+  return executar(async () => {
+    await exigirLogin();
+    const resultado = await importarLista(listaSchema.parse(texto));
+    revalidatePath("/contatos");
+    return resultado;
   });
 }
 
