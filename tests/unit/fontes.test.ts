@@ -47,6 +47,10 @@ describe("Google Places", () => {
     expect(texto).toContain("não incluem a Places API (New)");
     expect(texto).toContain("nº 987654");
     expect(descreverErroGoogle(403, null)).toMatch(/HTTP 403.*Places API \(New\) está ativada/);
+    const generico = descreverErroGoogle(403, {
+      error: { code: 403, message: "The caller does not have permission", status: "PERMISSION_DENIED", details: [{ links: [{ description: "Ajuda", url: "https://exemplo.test/ajuda" }] }] },
+    });
+    expect(generico).toContain("Detalhes do Google: PERMISSION_DENIED · Ajuda: https://exemplo.test/ajuda");
   });
 });
 

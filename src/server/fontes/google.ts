@@ -53,7 +53,13 @@ export interface RespostaGoogle {
     code: number;
     message: string;
     status: string;
-    details?: Array<{ reason?: string; metadata?: Record<string, string> }>;
+    details?: Array<{
+      "@type"?: string;
+      reason?: string;
+      metadata?: Record<string, string>;
+      message?: string; // google.rpc.LocalizedMessage
+      links?: Array<{ description?: string; url?: string }>; // google.rpc.Help
+    }>;
   };
 }
 
@@ -77,6 +83,10 @@ export function descreverErroGoogle(status: number, resposta: RespostaGoogle | n
   if (info?.reason) partes.push(`Motivo: ${info.reason}. ${MOTIVOS[info.reason] ?? ""}`.trim());
   else if (status === 403) partes.push("Confira se a Places API (New) está ativada, se o faturamento está ligado e se a chave não tem restrições.");
   if (projeto) partes.push(`A chave pertence ao projeto nº ${projeto} — confira se é o mesmo do painel do Google Cloud.`);
+  // Outros detalhes que o Google mande (mensagem traduzida, links de ajuda), para o diagnóstico.
+  const extras = (resposta?.error?.details ?? []).flatMap((d) => [d.message, ...(d.links ?? []).map((l) => [l.description, l.url].filter(Boolean).join(": "))]).filter(Boolean);
+  const codigo = resposta?.error?.status;
+  if (extras.length || (codigo && !info?.reason)) partes.push(`Detalhes do Google: ${[codigo, ...extras].filter(Boolean).join(" · ")}`.slice(0, 400));
   return partes.join(" ");
 }
 
@@ -135,6 +145,7 @@ export async function buscarPaginaGoogle(termo: string, cidade: string, uf: stri
   }
   const dados = (await resposta.json().catch(() => null)) as RespostaGoogle | null;
   if (!resposta.ok || !dados) {
+    console.error("[google-places] erro", resposta.status, JSON.stringify(dados?.error ?? null).slice(0, 2000));
     throw new ErroDeFonte(descreverErroGoogle(resposta.status, dados), resposta.status === 429 || resposta.status >= 500);
   }
   return dados;
