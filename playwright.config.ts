@@ -1,31 +1,37 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const E2E_DB = process.env.E2E_DATABASE_URL ?? "postgresql://prospecta:prospecta_dev@localhost:5432/prospecta_e2e?schema=public";
-const PORT = 3200;
+/**
+ * Testes ponta a ponta contra o build de produção (rode `npm run build` antes).
+ * A API do Google é simulada; o banco precisa terminar em "_e2e" (E2E_DATABASE_URL).
+ */
+const PORTA = 3300;
+const banco = process.env.E2E_DATABASE_URL ?? "";
+if (!/_e2e(\?|$)/.test(banco)) throw new Error("Defina E2E_DATABASE_URL com um banco cujo nome termina em _e2e.");
 
 export default defineConfig({
   testDir: "e2e",
-  timeout: 60_000,
   fullyParallel: false,
   workers: 1,
-  reporter: [["list"]],
-  globalSetup: "./e2e/global-setup.ts",
-  use: { baseURL: `http://localhost:${PORT}`, locale: "pt-BR", timezoneId: "America/Sao_Paulo", trace: "retain-on-failure" },
+  reporter: "list",
+  globalSetup: "./e2e/preparar.ts",
+  use: { baseURL: `http://127.0.0.1:${PORTA}`, locale: "pt-BR", trace: "retain-on-failure" },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: /mobile\.spec\.ts/ },
-    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /mobile\.spec\.ts/ },
+    { name: "computador", use: { viewport: { width: 1360, height: 900 } }, testMatch: /computador\.spec\.ts/ },
+    { name: "celular", use: { ...devices["Pixel 7"] }, testMatch: /celular\.spec\.ts/, dependencies: ["computador"] },
   ],
-  webServer: {
-    command: `npx next dev -p ${PORT}`,
-    url: `http://localhost:${PORT}/login`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-    env: {
-      DATABASE_URL: E2E_DB,
-      APP_SECRET: "e2e-secret-0123456789abcdef0123456789abcdef",
-      APP_URL: `http://localhost:${PORT}`,
-      OSM_ENABLED: "false",
-      NEXT_TELEMETRY_DISABLED: "1",
+  webServer: [
+    { command: "node e2e/google-simulado.mjs --servir 4466", port: 4466, reuseExistingServer: false },
+    {
+      command: `npx next start -p ${PORTA}`,
+      port: PORTA,
+      reuseExistingServer: false,
+      env: {
+        DATABASE_URL: banco,
+        APP_PASSWORD: "senha-e2e-123",
+        GOOGLE_PLACES_API_KEY: "chave-de-teste",
+        GOOGLE_PLACES_URL: "http://127.0.0.1:4466/v1/places:searchText",
+        PLACES_DAILY_LIMIT: "30",
+      },
     },
-  },
+  ],
 });

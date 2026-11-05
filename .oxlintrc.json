@@ -27,23 +27,10 @@
     "unicorn/no-array-sort": "off",
     "import/no-unassigned-import": "off",
     "react/purity": "off",
-    "no-underscore-dangle": [
-      "warn",
-      {
-        "allow": [
-          "_count",
-          "_sum",
-          "_avg",
-          "_max",
-          "_min"
-        ]
-      }
-    ],
     "no-unmodified-loop-condition": "off",
     "jsx-a11y/prefer-tag-over-role": "off"
   },
   "ignorePatterns": [
-    "src/generated/**",
     ".next/**",
     "node_modules/**",
     "playwright-report/**",

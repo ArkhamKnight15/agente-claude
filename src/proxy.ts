@@ -1,27 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const SESSION_COOKIE = "prospecta_session";
-const PUBLIC_PREFIXES = ["/login", "/descadastro", "/api/webhooks", "/api/public", "/api/cron", "/api/health"];
+import { COOKIE_SESSAO, sessaoValida } from "@/lib/sessao";
 
 /**
- * Verificação otimista: sem cookie de sessão, redireciona para o login.
- * A validação real da sessão e das permissões acontece no servidor em cada página/ação.
+ * Barra quem não entrou com a senha. As páginas e ações conferem de novo no servidor.
+ * Sem APP_PASSWORD configurada, deixa passar: a página mostra o que falta configurar.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-    return NextResponse.next();
-  }
-  if (!request.cookies.has(SESSION_COOKIE)) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-    }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + search)}`;
-    return NextResponse.redirect(url);
-  }
-  return NextResponse.next();
+  if (pathname === "/login" || pathname.startsWith("/api/cidades/")) return NextResponse.next();
+
+  const senha = process.env.APP_PASSWORD?.trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+  if (!senha) return NextResponse.next();
+  if (await sessaoValida(request.cookies.get(COOKIE_SESSAO)?.value, senha)) return NextResponse.next();
+
+  if (pathname.startsWith("/api/")) return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
+  const url = request.nextUrl.clone();
+  url.pathname = "/login";
+  url.search = pathname === "/" ? "" : `?destino=${encodeURIComponent(pathname + search)}`;
+  return NextResponse.redirect(url);
 }
 
 export const config = {

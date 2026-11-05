@@ -1,15 +1,14 @@
-import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { ToastProvider } from "@/components/ui/toast";
+import type { Metadata, Viewport } from "next";
+import { ProvedorNotificacoes } from "@/components/ui/notificacoes";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Prospecta", template: "%s · Prospecta" },
-  description: "Agente comercial de IA para encontrar empresas sem site, preparar abordagens e acompanhar vendas.",
-  applicationName: "Prospecta",
+  description: "Encontre empresas sem site na sua cidade e envie sua proposta pelo WhatsApp.",
   robots: { index: false, follow: false },
+  applicationName: "Prospecta",
 };
 
 export const viewport: Viewport = {
@@ -21,17 +20,11 @@ export const viewport: Viewport = {
   ],
 };
 
-// Aplica o tema antes da primeira pintura (evita o "flash" de tema errado).
-const themeScript = `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||((!t||t==="system")&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);}catch(e){}})();`;
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
-      <body>
-        <Script id="theme" strategy="beforeInteractive">
-          {themeScript}
-        </Script>
-        <ToastProvider>{children}</ToastProvider>
+    <html lang="pt-BR" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className="min-h-dvh font-sans antialiased">
+        <ProvedorNotificacoes>{children}</ProvedorNotificacoes>
       </body>
     </html>
   );

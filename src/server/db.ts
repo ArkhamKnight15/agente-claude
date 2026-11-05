@@ -1,18 +1,87 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
-import { getEnv } from "@/server/env";
+import "server-only";
+import { Pool, type QueryResultRow } from "pg";
+import { getEnv } from "./env";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+/**
+ * Postgres (Neon na Vercel). As tabelas são criadas automaticamente na primeira consulta —
+ * não há migração para rodar. Prefixo "prospecta_" para conviver com outras tabelas do banco.
+ */
 
-function createClient() {
-  const adapter = new PrismaPg({ connectionString: getEnv().DATABASE_URL });
-  return new PrismaClient({ adapter });
+const ESQUEMA = `
+CREATE TABLE IF NOT EXISTS prospecta_contatos (
+  id text PRIMARY KEY,
+  nome text NOT NULL,
+  categoria text,
+  nicho text,
+  endereco text,
+  cidade text NOT NULL,
+  uf text NOT NULL,
+  telefone text,
+  telefone_tipo text NOT NULL DEFAULT 'desconhecido',
+  site_status text NOT NULL,
+  site_url text,
+  site_rotulo text,
+  maps_url text,
+  avaliacao real,
+  avaliacoes integer,
+  fonte text NOT NULL,
+  status text NOT NULL DEFAULT 'novo',
+  observacao text,
+  contatado_em timestamptz,
+  criado_em timestamptz NOT NULL DEFAULT now(),
+  atualizado_em timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS prospecta_contatos_telefone ON prospecta_contatos (telefone);
+CREATE INDEX IF NOT EXISTS prospecta_contatos_status ON prospecta_contatos (status, atualizado_em DESC);
+CREATE TABLE IF NOT EXISTS prospecta_config (chave text PRIMARY KEY, valor jsonb NOT NULL);
+CREATE TABLE IF NOT EXISTS prospecta_uso (dia date NOT NULL, recurso text NOT NULL, quantidade integer NOT NULL, PRIMARY KEY (dia, recurso));
+CREATE TABLE IF NOT EXISTS prospecta_login (ip text PRIMARY KEY, tentativas integer NOT NULL, janela timestamptz NOT NULL);
+`;
+
+const global = globalThis as unknown as { prospectaPool?: Pool; prospectaEsquema?: Promise<void> };
+
+function pool(): Pool {
+  global.prospectaPool ??= new Pool({ connectionString: getEnv().DATABASE_URL, max: 5, idleTimeoutMillis: 10_000 });
+  return global.prospectaPool;
 }
 
-/** Cliente Prisma único por processo (evita múltiplas conexões no hot reload). */
-export const db: PrismaClient = globalForPrisma.prisma ?? createClient();
+function garantirEsquema(): Promise<void> {
+  global.prospectaEsquema ??= pool()
+    .query(ESQUEMA)
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      global.prospectaEsquema = undefined; // tenta de novo na próxima consulta
+      throw error;
+    });
+  return global.prospectaEsquema;
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+export async function sql<T extends QueryResultRow>(texto: string, parametros: unknown[] = []): Promise<T[]> {
+  await garantirEsquema();
+  const resultado = await pool().query<T>(texto, parametros);
+  return resultado.rows;
+}
 
-export type Db = PrismaClient;
-export type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
+/** Executa várias consultas na mesma transação. */
+export async function transacao<T>(fn: (q: <R extends QueryResultRow>(texto: string, parametros?: unknown[]) => Promise<R[]>) => Promise<T>): Promise<T> {
+  await garantirEsquema();
+  const cliente = await pool().connect();
+  try {
+    await cliente.query("BEGIN");
+    const resultado = await fn(async (texto, parametros = []) => (await cliente.query(texto, parametros)).rows);
+    await cliente.query("COMMIT");
+    return resultado;
+  } catch (error) {
+    await cliente.query("ROLLBACK");
+    throw error;
+  } finally {
+    cliente.release();
+  }
+}
+
+/** Para testes: fecha as conexões. */
+export async function encerrarConexoes(): Promise<void> {
+  await global.prospectaPool?.end();
+  global.prospectaPool = undefined;
+  global.prospectaEsquema = undefined;
+}
