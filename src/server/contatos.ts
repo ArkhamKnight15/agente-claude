@@ -22,6 +22,7 @@ interface Linha {
   avaliacoes: number | null;
   fonte: Contato["fonte"];
   origem_url: string | null;
+  consultado_em: Date | null;
   status: ContatoStatus;
   observacao: string | null;
   contatado_em: Date | null;
@@ -48,6 +49,7 @@ function paraContato(l: Linha): Contato {
     avaliacoes: l.avaliacoes,
     fonte: l.fonte,
     origemUrl: l.origem_url,
+    consultadoEm: l.consultado_em?.toISOString() ?? null,
     status: l.status,
     observacao: l.observacao,
     contatadoEm: l.contatado_em?.toISOString() ?? null,
@@ -78,18 +80,19 @@ export async function salvarEmpresas(empresas: Empresa[], nicho: string): Promis
         [linha] = await q<Linha>(
           `UPDATE prospecta_contatos SET nome = $2, categoria = $3, endereco = $4, telefone = COALESCE($5, telefone),
              telefone_tipo = CASE WHEN $5::text IS NULL THEN telefone_tipo ELSE $6 END, site_status = $7, site_url = $8,
-             site_rotulo = $9, maps_url = $10, avaliacao = $11, avaliacoes = $12, origem_url = COALESCE($13, origem_url)
+             site_rotulo = $9, maps_url = $10, avaliacao = $11, avaliacoes = $12, origem_url = COALESCE($13, origem_url),
+             consultado_em = COALESCE($14, consultado_em)
            WHERE id = $1 RETURNING *`,
-          [e.id, e.nome, e.categoria, e.endereco, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.origemUrl],
+          [e.id, e.nome, e.categoria, e.endereco, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.origemUrl, e.consultadoEm],
         );
       } else if (mesmoTelefone) {
         linha = mesmoTelefone; // mesma empresa vinda de outra fonte ou com outro cadastro
       } else {
         [linha] = await q<Linha>(
           `INSERT INTO prospecta_contatos (id, nome, categoria, nicho, endereco, cidade, uf, telefone, telefone_tipo,
-             site_status, site_url, site_rotulo, maps_url, avaliacao, avaliacoes, fonte, origem_url)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
-          [e.id, e.nome, e.categoria, nicho, e.endereco, e.cidade, e.uf, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.fonte, e.origemUrl],
+             site_status, site_url, site_rotulo, maps_url, avaliacao, avaliacoes, fonte, origem_url, consultado_em)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+          [e.id, e.nome, e.categoria, nicho, e.endereco, e.cidade, e.uf, e.telefone, e.telefoneTipo, e.siteStatus, e.siteUrl, e.siteRotulo, e.mapsUrl, e.avaliacao, e.avaliacoes, e.fonte, e.origemUrl, e.consultadoEm],
         );
         novas++;
         porId.set(linha.id, linha);

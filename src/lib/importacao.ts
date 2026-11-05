@@ -6,7 +6,7 @@ import { normalizarTexto } from "./texto";
  * sem cabeçalho, segue a ordem de COLUNAS.
  */
 
-export const COLUNAS = ["nome", "telefone", "cidade", "uf", "site", "categoria", "endereco", "fonte"] as const;
+export const COLUNAS = ["nome", "telefone", "cidade", "uf", "site", "categoria", "endereco", "fonte", "consultado"] as const;
 export type Coluna = (typeof COLUNAS)[number];
 
 const APELIDOS: Record<string, Coluna> = {
@@ -34,7 +34,24 @@ const APELIDOS: Record<string, Coluna> = {
   fonte: "fonte",
   origem: "fonte",
   "link da fonte": "fonte",
+  consultado: "consultado",
+  "consultado em": "consultado",
+  "data da consulta": "consultado",
+  data: "consultado",
+  pesquisado: "consultado",
+  "pesquisado em": "consultado",
 };
+
+/** Data no formato dd/mm/aaaa ou aaaa-mm-dd → ISO (meio-dia, para não mudar de dia pelo fuso). */
+export function lerData(valor: string | undefined): string | null {
+  const texto = valor?.trim() ?? "";
+  const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const [ano, mes, dia] = br ? [br[3], br[2], br[1]] : iso ? [iso[1], iso[2], iso[3]] : [];
+  if (!ano) return null;
+  const data = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia), 15));
+  return data.getUTCDate() === Number(dia) && data.getUTCMonth() === Number(mes) - 1 ? data.toISOString() : null;
+}
 
 export const MAX_LINHAS_IMPORTACAO = 300;
 

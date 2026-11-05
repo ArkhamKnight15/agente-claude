@@ -71,6 +71,7 @@ export function converterElemento(el: ElementoOsm, cidade: string, uf: string): 
     avaliacoes: null,
     fonte: "osm",
     origemUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`,
+    consultadoEm: new Date().toISOString(),
     cidadeDaFonte: tags["addr:city"] ?? null,
     fechada: Boolean(tags["disused:shop"] || tags["disused:amenity"]),
   };

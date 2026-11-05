@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS prospecta_contatos (
   atualizado_em timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE prospecta_contatos ADD COLUMN IF NOT EXISTS origem_url text;
+ALTER TABLE prospecta_contatos ADD COLUMN IF NOT EXISTS consultado_em timestamptz;
 CREATE INDEX IF NOT EXISTS prospecta_contatos_telefone ON prospecta_contatos (telefone);
 CREATE INDEX IF NOT EXISTS prospecta_contatos_status ON prospecta_contatos (status, atualizado_em DESC);
 CREATE TABLE IF NOT EXISTS prospecta_config (chave text PRIMARY KEY, valor jsonb NOT NULL);

@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Check, Copy, ExternalLink, Globe, GlobeLock, Link2, MapPin, MessageCircle, Phone, Search, Star } from "lucide-react";
+import { AtSign, CalendarCheck, Check, Copy, ExternalLink, Globe, GlobeLock, Link2, MapPin, MessageCircle, Phone, Search, Star } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { Botao, LinkBotao } from "@/components/ui/botao";
 import { AreaTexto } from "@/components/ui/campo";
@@ -98,6 +98,13 @@ export function CartaoContato({ contato: inicial, config, comObservacao, aoAtual
           <dd>{contato.telefone ? formatarTelefone(contato.telefone) : <span className="text-fg-3">Sem telefone</span>}</dd>
           {contato.telefoneTipo === "fixo" ? <dd className="text-12 text-warning">(fixo — pode não ter WhatsApp)</dd> : null}
         </div>
+        {contato.consultadoEm ? (
+          <div className="flex items-center gap-1.5">
+            <dt className="sr-only">Data da consulta dos dados</dt>
+            <CalendarCheck className="size-3.5 text-fg-3" aria-hidden />
+            <dd className="text-fg-3">Consultado em {formatarData(contato.consultadoEm)}</dd>
+          </div>
+        ) : null}
         {contato.avaliacao ? (
           <div className="flex items-center gap-1.5">
             <dt className="sr-only">Avaliação no Google</dt>

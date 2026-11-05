@@ -10,15 +10,15 @@ import { AreaTexto } from "@/components/ui/campo";
 import { Selo } from "@/components/ui/selo";
 import { STATUS, SITE, type Tom } from "@/data/status";
 import { COLUNAS, MAX_LINHAS_IMPORTACAO } from "@/lib/importacao";
-import { plural } from "@/lib/formato";
+import { formatarData, plural } from "@/lib/formato";
 import { formatarTelefone } from "@/lib/telefone";
 import { importarAcao, preverImportacaoAcao } from "@/server/acoes";
 import type { ItemPrevia, PreviaImportacao } from "@/server/importacao";
 import type { ConfigMensagem, Contato } from "@/types";
 
 const EXEMPLO = `${COLUNAS.join(";")}
-Barbearia do João;(19) 98000-0001;Campinas;SP;;Barbearia;Rua A, 10 - Centro;https://exemplo.com.br/pagina
-Corte Fino;19 98000-0002;Campinas;SP;instagram.com/cortefino;Barbearia;;`;
+Barbearia do João;(19) 98000-0001;Campinas;SP;;Barbearia;Rua A, 10 - Centro;https://exemplo.com.br/pagina;05/11/2026
+Corte Fino;19 98000-0002;Campinas;SP;instagram.com/cortefino;Barbearia;;;`;
 
 const SITUACAO: Record<ItemPrevia["situacao"], { rotulo: string; tom: Tom }> = {
   nova: { rotulo: "Nova", tom: "sucesso" },
@@ -134,7 +134,10 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
               Com cabeçalho, as colunas podem vir em qualquer ordem. Sem cabeçalho, use esta ordem:{" "}
               <code className="font-mono text-12">{COLUNAS.join(" ; ")}</code>
             </p>
-            <p>Obrigatórios: nome, cidade e UF. Telefone, site/Instagram, categoria, endereço e link da fonte são opcionais.</p>
+            <p>
+              Obrigatórios: nome, cidade e UF. Telefone, site/Instagram, categoria, endereço, link da fonte e data da consulta (dd/mm/aaaa) são opcionais.
+              Sem data, vale a data da importação.
+            </p>
           </div>
         </details>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -199,7 +202,14 @@ export function PainelImportacao({ config }: { config: ConfigMensagem }) {
                     {item.erro ? (
                       <span className="text-danger">{item.erro}</span>
                     ) : (
-                      [`${item.cidade} - ${item.uf}`, item.telefone ? formatarTelefone(item.telefone) : null, ...item.avisos].filter(Boolean).join(" · ")
+                      [
+                        `${item.cidade} - ${item.uf}`,
+                        item.telefone ? formatarTelefone(item.telefone) : null,
+                        item.consultadoEm ? `consultado em ${formatarData(item.consultadoEm)}` : null,
+                        ...item.avisos,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
                     )}
                   </p>
                 </div>

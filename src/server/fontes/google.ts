@@ -115,6 +115,7 @@ export function converterLugar(lugar: LugarGoogle, cidadePadrao: string, uf: str
     avaliacoes: lugar.userRatingCount ?? null,
     fonte: "google",
     origemUrl: null,
+    consultadoEm: new Date().toISOString(),
     cidadeDaFonte,
     fechada: lugar.businessStatus === "CLOSED_PERMANENTLY" || lugar.businessStatus === "CLOSED_TEMPORARILY",
   };

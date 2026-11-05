@@ -121,9 +121,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("busca e contatos (Postgres)", (
     const { contatos } = await executarBusca(busca());
     await atualizarContato(contatos[0].id, { status: "enviado" }); // Barbearia 1, (19) 98000-0001
 
-    const lista = `nome;telefone;cidade;uf;site;categoria;endereco;fonte
+    const lista = `nome;telefone;cidade;uf;site;categoria;endereco;fonte;consultado
 Barbearia 1 (outro cadastro);(19) 98000-0001;Campinas;SP;;Barbearia;;
-Barbearia Nova;19 97777-6666;campinas;sp;instagram.com/nova;Barbearia;Rua B, 5;https://exemplo.test/nova
+Barbearia Nova;19 97777-6666;campinas;sp;instagram.com/nova;Barbearia;Rua B, 5;https://exemplo.test/nova;03/11/2026
 Barbearia Nova repetida;19 97777-6666;Campinas;SP;;;;
 Sem Cidade;19 95555-4444;Cidade Inventada;SP;;;;
 Pet Sem Telefone;;Campinas;SP;;Pet shop;;`;
@@ -140,6 +140,8 @@ Pet Sem Telefone;;Campinas;SP;;Pet shop;;`;
     expect(importados).toHaveLength(3);
     const nova = importados.find((c) => c.nome === "Barbearia Nova")!;
     expect(nova).toMatchObject({ fonte: "importado", cidade: "Campinas", uf: "SP", siteStatus: "so_perfil", telefone: "5519977776666", origemUrl: "https://exemplo.test/nova", nicho: "Barbearia" });
+    expect(nova.consultadoEm?.slice(0, 10)).toBe("2026-11-03");
+    expect(importados.find((c) => c.nome === "Pet Sem Telefone")?.consultadoEm).not.toBeNull(); // sem data: a da importação
     expect(importados.find((c) => c.telefone === "5519980000001")).toMatchObject({ id: contatos[0].id, status: "enviado" });
 
     // Importar a mesma lista de novo não duplica.

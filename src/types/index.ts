@@ -28,6 +28,7 @@ export interface Empresa {
   avaliacoes: number | null;
   fonte: Fonte;
   origemUrl: string | null; // página onde o dado foi encontrado (listas importadas, OpenStreetMap)
+  consultadoEm: string | null; // quando os dados foram consultados na fonte (ISO)
 }
 
 /** Empresa salva, com o andamento do contato (compartilhado entre aparelhos). */

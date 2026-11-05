@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { municipioOficial, ufValida } from "@/data/municipios";
-import { lerLista, type LinhaLida } from "@/lib/importacao";
+import { lerData, lerLista, type LinhaLida } from "@/lib/importacao";
 import { classificarSite } from "@/lib/site";
 import { normalizarTelefone } from "@/lib/telefone";
 import { normalizarTexto } from "@/lib/texto";
@@ -21,6 +21,7 @@ export interface ItemPrevia {
   telefone: string | null;
   siteStatus: Empresa["siteStatus"] | null;
   siteRotulo: string | null;
+  consultadoEm: string | null;
   situacao: SituacaoImportacao;
   statusAtual?: ContatoStatus;
   avisos: string[];
@@ -50,7 +51,7 @@ function urlValida(valor: string | undefined): string | null {
 function converter({ linha, campos }: LinhaLida): Lida {
   const nome = campos.nome?.trim() ?? "";
   const uf = (campos.uf ?? "").trim().toUpperCase();
-  const base: ItemPrevia = { linha, nome: nome || "(sem nome)", cidade: campos.cidade ?? "", uf, telefone: null, siteStatus: null, siteRotulo: null, situacao: "erro", avisos: [] };
+  const base: ItemPrevia = { linha, nome: nome || "(sem nome)", cidade: campos.cidade ?? "", uf, telefone: null, siteStatus: null, siteRotulo: null, consultadoEm: null, situacao: "erro", avisos: [] };
   if (nome.length < 2) return { item: { ...base, erro: "Falta o nome da empresa." }, empresa: null };
   if (!ufValida(uf)) return { item: { ...base, erro: "UF inválida (use a sigla, ex.: SP)." }, empresa: null };
   const cidade = municipioOficial(uf, campos.cidade ?? "");
@@ -61,6 +62,8 @@ function converter({ linha, campos }: LinhaLida): Lida {
   if (campos.telefone && !telefone) avisos.push("telefone inválido, ignorado");
   if (!telefone) avisos.push("sem telefone");
   const site = classificarSite(campos.site);
+  const consultadoEm = lerData(campos.consultado);
+  if (campos.consultado && !consultadoEm) avisos.push("data inválida, usada a de hoje");
 
   const empresa: Empresa & { categoria: string | null } = {
     id: idImportado(nome, cidade, uf, telefone?.numero ?? null),
@@ -79,9 +82,10 @@ function converter({ linha, campos }: LinhaLida): Lida {
     avaliacoes: null,
     fonte: "importado",
     origemUrl: urlValida(campos.fonte),
+    consultadoEm: consultadoEm ?? new Date().toISOString(),
   };
   return {
-    item: { ...base, nome, cidade, telefone: empresa.telefone, siteStatus: site.status, siteRotulo: site.rotulo, situacao: "nova", avisos },
+    item: { ...base, nome, cidade, telefone: empresa.telefone, siteStatus: site.status, siteRotulo: site.rotulo, consultadoEm: empresa.consultadoEm, situacao: "nova", avisos },
     empresa,
   };
 }

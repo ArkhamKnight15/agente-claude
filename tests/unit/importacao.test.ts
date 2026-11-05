@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dividirLinha, lerLista } from "@/lib/importacao";
+import { dividirLinha, lerData, lerLista } from "@/lib/importacao";
 
 describe("leitura da lista importada", () => {
   it("lê CSV com ponto e vírgula, cabeçalho em qualquer ordem e aspas", () => {
@@ -29,5 +29,13 @@ describe("leitura da lista importada", () => {
     expect(r.linhas).toHaveLength(300);
     expect(r.excedeu).toBe(true);
     expect(dividirLinha("a, b ,c", ",")).toEqual(["a", "b", "c"]);
+  });
+
+  it("lê a data da consulta em dd/mm/aaaa ou aaaa-mm-dd", () => {
+    expect(lerData("05/11/2026")).toBe("2026-11-05T15:00:00.000Z");
+    expect(lerData("2026-11-05")).toBe("2026-11-05T15:00:00.000Z");
+    expect(lerData("31/02/2026")).toBeNull();
+    expect(lerData("ontem")).toBeNull();
+    expect(lerLista("nome;cidade;uf;consultado em\nA;Campinas;SP;05/11/2026").linhas[0].campos.consultado).toBe("05/11/2026");
   });
 });

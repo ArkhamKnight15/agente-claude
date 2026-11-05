@@ -13,7 +13,7 @@ export async function GET() {
   if (!(await estaLogado())) return new Response("Não autorizado.", { status: 401 });
   const contatos = await listarContatos({}, 10_000);
   const csv = gerarCsv(
-    ["Empresa", "Telefone", "WhatsApp", "Cidade", "UF", "Categoria", "Site", "Endereço do site", "Andamento", "Contatado em", "Observação", "Mapa", "Fonte", "Link da fonte"],
+    ["Empresa", "Telefone", "WhatsApp", "Cidade", "UF", "Categoria", "Site", "Endereço do site", "Andamento", "Contatado em", "Observação", "Mapa", "Fonte", "Link da fonte", "Consultado em"],
     contatos.map((c) => [
       c.nome,
       formatarTelefone(c.telefone),
@@ -29,6 +29,7 @@ export async function GET() {
       c.mapsUrl,
       FONTES[c.fonte],
       c.origemUrl,
+      formatarData(c.consultadoEm),
     ]),
   );
   const dia = new Date().toISOString().slice(0, 10);
